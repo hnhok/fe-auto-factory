@@ -11,7 +11,7 @@ import { execSync, spawnSync } from 'child_process'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
-const FACTORY_VERSION = '2.0.0'
+const FACTORY_VERSION = '2.0.1'
 
 // ─── ANSI Color Helpers ───────────────────────────────────────────────────────
 const c = {
