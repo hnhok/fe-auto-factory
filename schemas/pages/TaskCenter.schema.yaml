@@ -1,0 +1,26 @@
+---
+page_id: TaskCenter
+title: 任务中心
+layout: blank
+route: /task/center
+api_endpoints:
+  - getTaskList
+  - updateTaskStatus
+components:
+  - VanNavBar
+  - VanSearch
+  - VanTab
+  - VanTabs
+  - VanList
+  - VanCell
+  - VanTag
+state:
+  - taskList: array
+  - loading: boolean
+  - searchText: string
+track:
+  - task-search-confirm
+  - task-tab-switch
+  - task-item-click
+version: "1.0"
+---

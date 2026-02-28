@@ -1,0 +1,16 @@
+---
+page_id: AdminDashboard
+title: 后台控制面板
+layout: admin
+route: /admin/dashboard
+api_endpoints:
+  - getSystemStats
+components:
+  - VanGrid
+  - VanGridItem
+state:
+  - stats: object
+track:
+  - admin-dashboard-view
+version: "1.0"
+---

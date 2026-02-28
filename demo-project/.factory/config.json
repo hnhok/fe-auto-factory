@@ -1,0 +1,15 @@
+{
+  "projectName": "demo-project",
+  "createdAt": "2026-02-28T08:09:11.750Z",
+  "factoryVersion": "2.0.0",
+  "skills": [
+    "01-requirements",
+    "02-development",
+    "03-testing",
+    "04-deployment"
+  ],
+  "schema": {
+    "pagesDir": "schemas/pages",
+    "templatesDir": "../fe-auto-factory/templates"
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FE-Factory Page Schema",
+  "description": "前端自动化工厂 - 页面元数据定义规范",
+  "type": "object",
+  "required": [
+    "page_id"
+  ],
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "pattern": "^[A-Z][a-zA-Z0-9]+$",
+      "description": "页面唯一ID，必须为 PascalCase",
+      "examples": [
+        "OrderDetail",
+        "UserProfile",
+        "ProductList"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "description": "页面标题（中文）",
+      "examples": [
+        "订单详情",
+        "用户中心"
+      ]
+    },
+    "layout": {
+      "type": "string",
+      "enum": [
+        "blank",
+        "dashboard",
+        "tabbar",
+        "fullscreen",
+        "admin"
+      ],
+      "default": "blank",
+      "description": "页面布局类型"
+    },
+    "route": {
+      "type": "string",
+      "pattern": "^/",
+      "description": "路由路径，必须以 / 开头",
+      "examples": [
+        "/order/:id",
+        "/user/profile"
+      ]
+    },
+    "api_endpoints": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-zA-Z0-9]+$",
+        "description": "API 函数名，camelCase"
+      },
+      "description": "页面消费的 API 端点列表"
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "页面需要的组件列表（Vant 或自定义）"
+    },
+    "state": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "页面级状态字段定义，格式: 'fieldName: type'"
+    },
+    "auth": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "需要的角色权限列表",
+      "examples": [
+        [
+          "admin"
+        ],
+        [
+          "admin",
+          "manager"
+        ]
+      ]
+    },
+    "track": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$",
+        "description": "埋点事件 ID，必须 kebab-case"
+      },
+      "description": "页面需要采集的埋点事件 ID 列表"
+    },
+    "version": {
+      "type": "string",
+      "description": "Schema 版本号",
+      "default": "1.0"
+    }
+  },
+  "additionalProperties": false
+}

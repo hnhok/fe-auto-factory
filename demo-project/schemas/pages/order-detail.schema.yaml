@@ -1,0 +1,41 @@
+---
+page_id: OrderDetail
+title: 订单详情
+layout: dashboard
+route: /order/:id
+api_endpoints:
+  - getOrderDetail
+  - updateOrderStatus
+  - cancelOrder
+components:
+  - VanNavBar
+  - VanCell
+  - VanCellGroup
+  - VanButton
+  - StatusBadge
+  - VanActionSheet
+auth:
+  - admin
+  - manager
+track:
+  - order-cancel-click
+  - status-update-click
+  - order-print-click
+version: "1.0"
+---
+
+## 功能描述
+
+订单详情页面，展示单笔订单的完整信息，支持状态更新和取消操作。
+
+## User Story
+
+- 作为管理员，我可以查看订单的完整信息（订单号、金额、买家、商品列表）
+- 作为管理员，我可以更新订单状态（待处理→处理中→已完成）
+- 作为管理员，我可以取消订单并填写取消原因
+
+## 接受标准
+
+- [ ] 订单状态用不同颜色区分显示
+- [ ] 取消订单需弹出确认并填写原因
+- [ ] 操作成功后自动刷新数据

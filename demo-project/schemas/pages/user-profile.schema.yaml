@@ -1,0 +1,28 @@
+---
+page_id: UserProfile
+title: 用户中心
+layout: tabbar
+route: /user/profile
+api_endpoints:
+  - getUserProfile
+  - updateUserInfo
+components:
+  - VanNavBar
+  - VanCell
+  - VanCellGroup
+  - VanButton
+  - VanUploader
+track:
+  - profile-edit-click
+  - avatar-upload-click
+version: "1.0"
+---
+
+## 功能描述
+
+用户个人中心页面，展示和编辑用户信息。
+
+## User Story
+
+- 作为用户，我可以查看自己的个人信息
+- 作为用户，我可以修改头像和昵称

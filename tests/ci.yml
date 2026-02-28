@@ -1,0 +1,163 @@
+name: 🏭 FE-Factory CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ─── 阶段 1: 质量守卫 ──────────────────────────────────────────────────────
+  quality-gate:
+    name: 🔍 质量守卫 (Lint + TypeCheck + Build)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 检出代码
+        uses: actions/checkout@v4
+
+      - name: 🔧 配置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 安装依赖
+        run: npm ci
+
+      - name: 🔍 ESLint 检查
+        run: npm run lint -- --max-warnings=0
+
+      - name: 📝 Prettier 格式检查
+        run: npx prettier --check "src/**/*.{ts,vue,less}"
+
+      - name: 🏷️ TypeScript 类型检查
+        run: npm run build -- --noEmit || npx vue-tsc --noEmit
+
+      - name: 🏗️ 构建验证
+        run: npm run build
+
+      - name: 📊 构建产物大小分析
+        run: |
+          echo "=== 构建产物大小 ===" >> $GITHUB_STEP_SUMMARY
+          du -sh dist/ >> $GITHUB_STEP_SUMMARY
+          ls -la dist/assets/ | head -20 >> $GITHUB_STEP_SUMMARY
+
+  # ─── 阶段 2: 单元测试 ─────────────────────────────────────────────────────
+  unit-tests:
+    name: 🧪 单元测试 (Vitest)
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: 'npm' }
+      - run: npm ci
+      - name: 运行单元测试
+        run: npx vitest run --coverage
+      - name: 上传覆盖率报告
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+
+  # ─── 阶段 3: E2E 测试 ────────────────────────────────────────────────────
+  e2e-tests:
+    name: 🎭 E2E 测试 (Playwright)
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: 'npm' }
+      - run: npm ci
+
+      - name: 安装 Playwright 浏览器
+        run: npx playwright install --with-deps chromium
+
+      - name: 构建 & 启动预览服务
+        run: |
+          npm run build
+          npx serve -s dist -l 4173 &
+          sleep 3
+
+      - name: 运行 E2E 测试
+        run: npx playwright test
+        env:
+          BASE_URL: http://localhost:4173
+
+      - name: 上传 Playwright 报告
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: tests/playwright-report/
+          retention-days: 7
+
+  # ─── 阶段 4: 视觉回归 ────────────────────────────────────────────────────
+  visual-regression:
+    name: 👁️ 视觉回归测试
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: 'npm' }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: 启动预览服务
+        run: npm run build && npx serve -s dist -l 4173 &
+      - name: 视觉快照对比
+        run: npx playwright test --grep @visual
+        continue-on-error: true
+
+  # ─── 阶段 5: 性能基准 ────────────────────────────────────────────────────
+  lighthouse:
+    name: ⚡ 性能基准 (Lighthouse CI)
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: 'npm' }
+      - run: npm ci && npm run build
+      - name: 运行 Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          configPath: './lighthouserc.json'
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+  # ─── 阶段 6: 部署（仅 main 分支）──────────────────────────────────────────
+  deploy:
+    name: 🚀 生产部署
+    needs: [unit-tests, e2e-tests, lighthouse]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: 'npm' }
+      - run: npm ci && npm run build
+
+      - name: 注入版本号
+        run: echo "VITE_RELEASE_VERSION=${{ github.sha }}" >> .env.production
+
+      - name: 部署到服务器
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "dist/"
+          target: "/var/www/html/${{ github.event.repository.name }}"
+
+      - name: 发送部署通知
+        run: |
+          echo "## ✅ 部署成功" >> $GITHUB_STEP_SUMMARY
+          echo "- 版本: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 时间: $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "- 触发者: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY

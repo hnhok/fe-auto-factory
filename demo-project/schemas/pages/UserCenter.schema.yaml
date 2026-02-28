@@ -1,0 +1,17 @@
+---
+page_id: UserCenter
+title: 普通H5用户中心
+layout: blank
+route: /user/center
+api_endpoints:
+  - getUserProfile
+components:
+  - VanButton
+  - VanCellGroup
+  - VanCell
+state:
+  - userInfo: object
+track:
+  - user-center-view
+version: "1.0"
+---

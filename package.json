@@ -1,0 +1,49 @@
+{
+    "name": "fe-auto-factory",
+    "version": "2.0.0",
+    "description": "🏭 前端自动化工厂 - Schema驱动的全生命周期前端工程化体系",
+    "type": "module",
+    "keywords": [
+        "fe-factory",
+        "vue3",
+        "vant",
+        "automation",
+        "code-generation",
+        "skill"
+    ],
+    "bin": {
+        "fe-factory": "./scripts/factory.js"
+    },
+    "scripts": {
+        "factory": "node scripts/factory.js",
+        "factory:init": "node scripts/factory.js init",
+        "factory:generate": "node scripts/factory.js generate",
+        "factory:validate": "node scripts/factory.js validate",
+        "factory:test": "node scripts/factory.js test",
+        "factory:report": "node scripts/factory.js report",
+        "docs:dev": "vitepress dev docs",
+        "docs:build": "vitepress build docs"
+    },
+    "engines": {
+        "node": ">=20.0.0"
+    },
+    "files": [
+        "scripts/",
+        "skills/",
+        "templates/",
+        "schemas/",
+        "rules/",
+        "telemetry/",
+        "tests/",
+        ".agent/"
+    ],
+    "dependencies": {
+        "ajv": "^8.18.0",
+        "ejs": "^4.0.1",
+        "inquirer": "^13.3.0"
+    },
+    "devDependencies": {
+        "vitepress": "^1.6.4",
+        "vue": "^3.5.29"
+    }
+}
