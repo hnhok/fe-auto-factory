@@ -7,11 +7,12 @@
 在现有的前端项目中（目前默认最佳支持 Vue3 系列），你可以直接把本项目当做构建器。
 
 ```bash
-# 进入现存的测试库、组件库等，或在一个空白处安装大版本 (v2) 脚手架指令：
-npm install @your-company/fe-auto-factory@latest -D
+# 确保项目根目录存在 .npmrc，配置 @hnhok:registry=https://npm.pkg.github.com
+# 并在终端使用 npm login 登录你的 GitHub Token，随后执行安装指令：
+npm install @hnhok/fe-auto-factory@latest -D
 ```
 
-*(注意：在真实的业务落地中，这里的 `@your-company` 需替换成团队的内网或私服仓库包作用域名)*
+*(注意：当前版本托管在 GitHub Packages 平台，依赖带有 `read:packages` 权限的 Personal Access Token 才能安装)*
 
 ## 初始化测试
 
