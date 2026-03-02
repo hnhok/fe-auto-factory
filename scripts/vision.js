@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import { spawnSync } from 'child_process'
+import { parseFrontmatter } from './utils/schema.js'
 
 export async function cmdImgToCode(imagePath) {
     // 从当前工程读取架构标识 (Preset)
@@ -97,11 +98,14 @@ version: "1.0"
         // 去除可能包围的 markdown 代码块 ```yaml ... ```
         yamlString = yamlString.replace(/^```yaml\n/, '').replace(/```$/, '').trim()
 
-        // 3. 提取名称并保存 Schema
-        const pageIdMatch = yamlString.match(/page_id:\s*([a-zA-Z0-9_]+)/)
-        if (!pageIdMatch) throw new Error("AI 未能规范产出 page_id")
+        const schema = parseFrontmatter(yamlString) // 使用通用稳定解析器
+        const pageId = schema.page_id
 
-        const pageId = pageIdMatch[1]
+        if (!pageId) {
+            console.error("AI 产出的 YAML 中缺少 page_id 关键项，无法保存。")
+            console.log("AI 输出内容:\n", yamlString)
+            return
+        }
         const schemaFile = join(process.cwd(), `schemas/pages/${pageId}.schema.yaml`)
 
         writeFileSync(schemaFile, yamlString, 'utf-8')

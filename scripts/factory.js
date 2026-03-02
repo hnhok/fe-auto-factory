@@ -9,9 +9,12 @@ import { resolve, dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 import { execSync, spawnSync } from 'child_process'
 
+import { toKebabCase, toCamelCase } from './utils/string.js'
+import { parseFrontmatter } from './utils/schema.js'
+
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
-const FACTORY_VERSION = '2.2.1'
+const FACTORY_VERSION = '2.3.0'
 
 // ─── ANSI Color Helpers ───────────────────────────────────────────────────────
 const c = {
@@ -237,10 +240,13 @@ async function cmdGenerate(args) {
     }
   }
 
-  // 根据预设加载对应的生成引擎 Driver
-  let driverModuleFile = './generators/driver-vue-vant.js'
-  if (preset === 'vue3-element-admin') {
-    driverModuleFile = './generators/driver-vue-element.js'
+  // 根据预设动态加载对应的生成引擎 Driver
+  let driverModuleFile = `./generators/driver-${preset}.js`
+  const driverFullPath = join(__dirname, driverModuleFile)
+
+  if (!existsSync(driverFullPath)) {
+    log.warn(`找不到预设 [${preset}] 的渲染驱动，回退至基础 H5 引擎...`)
+    driverModuleFile = './generators/driver-vue-vant.js'
   }
 
   log.info(`工厂接管：使用渲染驱动 [${preset}]`)
@@ -397,55 +403,7 @@ async function cmdReport(args) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function parseFrontmatter(content) {
-  // 支持 CRLF 和 LF 换行
-  const normalized = content.replace(/\r\n/g, '\n')
-  const match = normalized.match(/^---\n([\s\S]*?)\n---/)
-  if (!match) return {}
-  const yaml = match[1]
-  const result = {}
-  let currentKey = null
-
-  for (const line of yaml.split('\n')) {
-    // 多行数组项（- value 格式）
-    const arrayItemMatch = line.match(/^\s+-\s+(.+)/)
-    if (arrayItemMatch) {
-      if (currentKey && Array.isArray(result[currentKey])) {
-        result[currentKey].push(arrayItemMatch[1].trim())
-      }
-      continue
-    }
-
-    const colonIdx = line.indexOf(':')
-    if (colonIdx === -1) continue
-    const key = line.slice(0, colonIdx).trim()
-    if (!key || key.startsWith('#')) continue
-    const raw = line.slice(colonIdx + 1).trim()
-    currentKey = key
-
-    if (raw === '' || raw === '[]') {
-      // 空值 or 空数组：等待后续行填充
-      result[key] = []
-    } else if (raw.startsWith('[')) {
-      // 行内数组：[a, b, c]
-      result[key] = raw.slice(1, -1)
-        .split(',')
-        .map(s => s.trim().replace(/^['"]|['"]$/g, ''))
-        .filter(Boolean)
-    } else {
-      result[key] = raw.replace(/^['"]|['"]$/g, '')
-    }
-  }
-  return result
-}
-
-function toCamelCase(str) {
-  return str.charAt(0).toLowerCase() + str.slice(1)
-}
-
-function toKebabCase(str) {
-  return str.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '')
-}
+// (移至 ./utils 集中管理)
 
 function getWeekNumber(d) {
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
