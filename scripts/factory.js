@@ -14,7 +14,7 @@ import { parseFrontmatter } from './utils/schema.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
-const FACTORY_VERSION = '2.4.0'
+const FACTORY_VERSION = '2.4.1'
 
 // ─── ANSI Color Helpers ───────────────────────────────────────────────────────
 const c = {
@@ -219,12 +219,12 @@ async function cmdGenerate(args) {
     log.warn(`Ajv 校验环节报错或未安装，已跳过强校验: ${e.message}`)
   }
 
-  const { page_id, title = page_id, layout = 'blank', api_endpoints = [], components = [] } = schema
+  const { page_id, title = page_id, layout = 'blank', api_endpoints = [], components = [], track = [] } = schema
   const camel = toCamelCase(page_id)
   const kebab = toKebabCase(page_id)
 
   log.info(`生成页面: ${page_id} (${title})`)
-  log.gray(`布局: ${layout} | API: ${api_endpoints.join(', ') || '无'} | 组件: ${components.join(', ') || '无'}`)
+  log.gray(`布局: ${layout} | API: ${api_endpoints.join(', ') || '无'} | 组件: ${components.join(', ') || '无'} | 埋点: ${track.length} 项`)
 
   // ─── 统一配置加载 ───────────────────────────────────────────
   const projectRoot = process.cwd()
@@ -268,7 +268,7 @@ async function cmdGenerate(args) {
 
     // ─── 执行生成 ───────────────────────────────────────────
     await generator.generatePage({
-      page_id, title, layout, api_endpoints, components, camel, kebab,
+      page_id, title, layout, api_endpoints, components, track, camel, kebab,
       config: factoryConfig // 将合并后的配置注入驱动
     })
   } catch (err) {

@@ -11,18 +11,20 @@ export async function generatePage(params) {
   const cwd = process.cwd()
   const config = base.getFactoryConfig(cwd)
 
-  // 1. 生成 View (这是适配器特有的)
+  // 1. 生成渲染驱动特有的逻辑 (UI 层)
   await generateViewFile({ cwd, config, page_id, title, layout, camel, kebab })
-
-  // 2. 生成 Hook (Element Plus 专用 Message)
   await generateHookFile({ cwd, config, page_id, title, api_endpoints, camel, kebab })
 
-  // 3. 调用通用层生成周边文件 (DRY)
+  // 2. 多端通用资产基建 (SUPERPOWERS)
   base.generateApiFile({ cwd, config, page_id, api_endpoints, kebab })
   base.generateStoreFile({ cwd, config, page_id, camel, kebab })
   base.generateTestFile({ cwd, config, page_id, title, api_endpoints, kebab, framework: 'element-plus' })
 
-  // 4. AST 级路由安全注入
+  // ── 新增: 原子组件与埋点同步 ──
+  base.generateComponentScaffolds({ cwd, config, page_id, components: params.components || [] })
+  base.syncTrackingAssets({ cwd, track: params.track || [] })
+
+  // 3. AST 级路由安全注入
   await base.updateRouterSafely({ cwd, page_id, kebab, meta: { title } })
 }
 

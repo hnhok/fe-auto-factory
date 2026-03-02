@@ -3,8 +3,8 @@
  * 包含所有框架通用的 CRUD、API、Store 等低级别代码生成逻辑
  */
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs'
-import { join } from 'path'
-import { injectRoute, ensureNamedExport } from './utils/ast.js'
+import { join, dirname } from 'path'
+import { injectRoute, ensureNamedExport, ensureEnumMember } from './utils/ast.js'
 
 /**
  * 通用配置读取 (支持多版本配置文件合并)
@@ -139,6 +139,80 @@ test.describe('${page_id} — ${title}', () => {
         writeFileSync(filePath, content, 'utf-8')
         console.log(`  ✔ Test: ${config.testDir}/${kebab}.spec.ts`)
     }
+}
+
+/**
+ * 生成原子化业务组件脚手架
+ * 智能区分 UI 库组件 (Van/El/Ant) 与自定义业务组件
+ */
+export function generateComponentScaffolds({ cwd, config, page_id, components }) {
+    const viewDir = join(cwd, config.viewsDir, page_id, 'components')
+    mkdirSync(viewDir, { recursive: true })
+
+    const libPrefixes = ['Van', 'El', 'Ant', 'Base']
+
+    components.forEach(name => {
+        // 如果不是 UI 库的前缀，则视作需要生成的业务原子组件
+        const isLib = libPrefixes.some(p => name.startsWith(p))
+        if (!isLib) {
+            const componentFile = join(viewDir, `${name}.vue`)
+            if (!existsSync(componentFile)) {
+                const content = `<template>
+  <div class="c-${kebabCase(name)}">
+    <!-- [FACTORY-SCAFFOLD] 原子组件: ${name} -->
+    <slot />
+  </div>
+</template>
+
+<script setup lang="ts">
+/**
+ * ${name} 业务组件
+ */
+defineProps<{
+  data?: any
+}>()
+</script>
+
+<style scoped>
+.c-${kebabCase(name)} { /* 样式在此开始 */ }
+</style>
+`
+                writeFileSync(componentFile, content, 'utf-8')
+                console.log(`    ✔ Component Scoped: ${page_id}/components/${name}.vue`)
+            }
+        }
+    })
+}
+
+/**
+ * 同步埋点资产 (Tracking Assets)
+ * 自动维护全局埋点枚举，确保全端 ID 唯一且可追溯
+ */
+export function syncTrackingAssets({ cwd, track }) {
+    if (!track || track.length === 0) return
+
+    const trackFilePath = join(cwd, 'src/constants/tracking.ts')
+    const dir = dirname(trackFilePath)
+    mkdirSync(dir, { recursive: true })
+
+    if (!existsSync(trackFilePath)) {
+        writeFileSync(trackFilePath, `/**
+ * 全局埋点事件 ID 定义池 [FACTORY]
+ * 所有的埋点事件必须在此注册，极禁在业务端直接硬编码字符串 ID
+ */
+export enum TrackingEvents {
+  APP_LAUNCH = 'app_launch'
+}
+`, 'utf-8')
+    }
+
+    // 使用 AST 注入新的枚举项
+    track.forEach(id => {
+        const key = id.toUpperCase().replace(/-/g, '_')
+        const success = ensureEnumMember(trackFilePath, 'TrackingEvents', { name: key, value: id })
+        if (success) console.log(`    ✔ 增量更新埋点枚举: ${key}`)
+    })
+    console.log(`  ✔ Tracking: 同步了 ${track.length} 个埋点资产至 constants/tracking.ts`)
 }
 
 /**

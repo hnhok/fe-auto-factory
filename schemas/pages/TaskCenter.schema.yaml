@@ -6,8 +6,10 @@ route: /task/center
 api_endpoints:
   - getTaskList
   - updateTaskStatus
+  - deleteTask
 components:
   - VanNavBar
+  - CustomTaskItem
   - VanSearch
   - VanTab
   - VanTabs
@@ -22,5 +24,6 @@ track:
   - task-search-confirm
   - task-tab-switch
   - task-item-click
+  - new-task-track
 version: "1.0"
 ---

@@ -15,10 +15,8 @@ export function injectRoute(routerPath, { path, name, componentPath, meta = {} }
     const sourceFile = project.addSourceFileAtPath(routerPath)
 
     // 1. 寻找 routes 数组定义
-    // 查找带有 routes 属性的对象字面量，或者名为 routes 的变量声明
     let routesArray = null
 
-    // 方式 A: 查找 const routes = [...]
     const routesVar = sourceFile.getVariableDeclaration('routes')
     if (routesVar) {
         const initializer = routesVar.getInitializer()
@@ -27,7 +25,6 @@ export function injectRoute(routerPath, { path, name, componentPath, meta = {} }
         }
     }
 
-    // 方式 B: 查找 createRouter({ routes: [...] })
     if (!routesArray) {
         const callExprs = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)
         for (const call of callExprs) {
@@ -58,7 +55,7 @@ export function injectRoute(routerPath, { path, name, componentPath, meta = {} }
         return false
     })
 
-    if (existingRoute) return true // 已存在，视为成功
+    if (existingRoute) return true
 
     // 3. 构造新路由对象并插入
     const metaStr = Object.keys(meta).length > 0 ? `, meta: ${JSON.stringify(meta)}` : ''
@@ -69,8 +66,30 @@ export function injectRoute(routerPath, { path, name, componentPath, meta = {} }
   }`
 
     routesArray.addElement(newRouteStr)
+    sourceFile.saveSync()
+    return true
+}
 
-    // 4. 保存更改
+/**
+ * 确保 Enum 中包含特定的成员 (如果不存在则注入)
+ */
+export function ensureEnumMember(filePath, enumName, { name, value }) {
+    if (!existsSync(filePath)) return false
+
+    const project = new Project()
+    const sourceFile = project.addSourceFileAtPath(filePath)
+
+    const enumDeclaration = sourceFile.getEnum(enumName)
+    if (!enumDeclaration) return false
+
+    const existingMember = enumDeclaration.getMember(name)
+    if (existingMember) return true
+
+    enumDeclaration.addMember({
+        name,
+        value
+    })
+
     sourceFile.saveSync()
     return true
 }
@@ -84,13 +103,11 @@ export function ensureNamedExport(filePath, { name, content }) {
     const project = new Project()
     const sourceFile = project.addSourceFileAtPath(filePath)
 
-    // 检查是否已有同名导出
-    const existingExport = sourceFile.getExportSymbols().find(s => s.getName() === name)
-    if (existingExport) return true
+    // 严谨检查：遍历所有导出，看是否有同名符号
+    const isExist = sourceFile.getExportedDeclarations().has(name)
+    if (isExist) return true
 
-    // 在文件末尾追加
     sourceFile.addStatements(`\n/** [FACTORY-ADD] */\nexport ${content}`)
-
     sourceFile.saveSync()
     return true
 }
