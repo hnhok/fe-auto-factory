@@ -19,13 +19,14 @@ fe-auto-factory/
 │   ├── service/               # API Service 模板
 │   └── store/                 # Pinia Store 模板
 ├── scripts/                   # 工厂 CLI 脚本
-│   ├── factory.js             # 主 CLI 入口
-│   ├── generator.js           # 代码生成器
-│   ├── validator.js           # Schema 校验器
-│   └── sync.js                # 设计/接口同步器
-├── schemas/                   # JSON Schema 定义
-│   ├── page.schema.json       # 页面元数据 Schema
-│   └── component.schema.json  # 组件元数据 Schema
+│   ├── factory.js             # 主 CLI 入口 (v2.7)
+│   ├── generators/            # 驱动适配器 (Vant/Element/React)
+│   │   ├── base.js            # 通用生成基类
+│   │   └── driver-*.js        # 多端适配逻辑
+│   └── utils/                 # Schema & 字符串解析工具
+├── schemas/                   # JSON Schema 核心规范
+│   ├── page.schema.json       # 页面元数据强校验 (Ajv)
+│   └── pages/                 # 业务构架图纸库 (YAML)
 ├── rules/                     # 自定义 ESLint 规则
 │   └── fe-factory-rules.js    # 工厂最佳实践规则集
 ├── tests/                     # 测试自动化基础设施
@@ -51,27 +52,33 @@ fe-auto-factory/
 
 ### 1. 初始化新项目
 ```bash
-node scripts/factory.js init my-project
+npx fe-factory init my-project
 ```
 
-### 2. 从 Schema 生成页面
+### 2. 环境诊断与自愈 (v2.6+)
 ```bash
-node scripts/factory.js generate --schema schemas/examples/order-detail.yaml
+npx fe-factory doctor
 ```
 
-### 3. 同步 API 接口定义
+### 3. 从 Schema 生成页面 (v2.7+)
 ```bash
-node scripts/factory.js sync --swagger http://api.example.com/swagger.json
+npx fe-factory generate --schema schemas/pages/ProductList.yaml
 ```
 
-### 4. 运行全量质量检查
+### 4. 从设计稿 AI 视觉生成页面
 ```bash
-node scripts/factory.js validate
+npx fe-factory vision
 ```
 
-### 5. 执行自动化测试
+### 5. 基建同步更新
 ```bash
-node scripts/factory.js test
+npx fe-factory update
+```
+
+### 6. 执行质量检查与测试
+```bash
+npx fe-factory validate
+npx fe-factory test
 ```
 
 ---

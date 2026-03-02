@@ -63,13 +63,17 @@ npm install @hnhok/fe-auto-factory@latest -D
    ```json
    {
       "projectName": "your-legacy-app",
-      "factoryVersion": "2.x.x",
+      "factoryVersion": "2.7.0",
       "schema": {
          "pagesDir": "schemas/pages"
       }
    }
    ```
 2. 在项目根目录，创建 `schemas` 和 `schemas/pages` 文件夹，这里会用来存放你后续编写的构架图纸。
+
+> **💡 贴心合规诊断 (v2.6+)**
+>
+> 植入完成后，建议立即运行 `npx fe-factory doctor`。它会扫描你的老项目环境，确保 `ts-morph` 等关键依赖已就绪，并检查 `tsconfig.json` 的路径别名是否能被工厂引擎完美识别。
 
 如果你不确定怎么写业务，可以直接从你的终端运行 `npx fe-factory` 来呼出我们的互动式主控菜单进行验证！
 

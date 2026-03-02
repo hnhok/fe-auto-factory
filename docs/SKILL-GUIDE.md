@@ -42,22 +42,30 @@
 
 ### 核心产出
 ```yaml
-# schemas/pages/my-page.schema.yaml
-page_id: MyPage
-title: 我的页面
-layout: blank
-route: /my-page
-api_endpoints: [getMyData]
-components: [VanNavBar, VanList]
-track: [my-button-click]
-version: "1.0"
+# schemas/pages/ProductList.schema.yaml
+page_id: ProductList        # [v2.7] 核心 ID
+title: 商品列表
+layout: admin
+
+features:                    # [v2.7] 自动分页与搜索
+  pagination: true
+  search_bar: true
+
+models:                      # [v2.5] 领域建模
+  Product:
+    id: number
+    name: string
+    price: number
+
+api_endpoints: [getProductList]
+track: [PRODUCT_LIST_VIEW]
+version: "1.1"
 ```
 
 ### 快速检查
 ```bash
 # 校验 Schema 合规性
-node ../fe-auto-factory/scripts/factory.js validate-schema \
-  --file schemas/pages/my-page.schema.yaml
+npx fe-factory validate
 ```
 
 ---
@@ -69,8 +77,7 @@ Skill-01 的 Schema 文件通过校验后。
 
 ### 一键生成
 ```bash
-node ../fe-auto-factory/scripts/factory.js generate \
-  --schema schemas/pages/my-page.schema.yaml
+npx fe-factory generate --schema schemas/pages/ProductList.schema.yaml
 ```
 
 ### 生成后开发者只需做

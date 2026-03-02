@@ -39,22 +39,24 @@
 
 ## 核心数据流
 
-### 1. Schema → 代码
+### 1. Schema → 多维资产 (v2.7+)
 
 ```yaml
-# 输入：order-detail.schema.yaml
-page_id: OrderDetail
-api_endpoints: [getOrderDetail, updateOrderStatus]
-components: [VanCell, StatusBadge]
-track: [order-cancel-click]
+# 输入：product-list.schema.yaml
+page_id: ProductList
+features: { pagination: true, search_bar: true }
+models: { Product: { id: number, name: string } }
+api_endpoints: [getProductList]
 ```
 
-```
-factory generate ──►  src/views/OrderDetail/index.vue
-                       src/views/OrderDetail/hooks/useOrderDetail.ts
-                       src/api/order-detail.ts
-                       src/store/order-detail.ts
-                       tests/e2e/order-detail.spec.ts
+```text
+factory generate ──►  src/views/ProductList/index.vue        (UI 布局)
+                  ├── src/views/ProductList/hooks/use*.ts    (业务逻辑与特性封装)
+                  ├── src/api/product-list.ts               (API 请求与类型注入)
+                  ├── src/api/types/product-list.ts         (TS 接口定义)
+                  ├── src/store/product-list.ts             (Pinia 状态管理)
+                  ├── mock/product-list.mock.ts             (自动化 Mock 服务)
+                  └── tests/e2e/product-list.spec.ts        (Playwright 测试)
 ```
 
 ### 2. 代码 → 测试
@@ -83,11 +85,11 @@ factory generate ──►  src/views/OrderDetail/index.vue
 | `skills/02-development/` | 代码生成规范、最佳实践 | factory generate 命令 |
 | `skills/03-testing/` | 测试策略、E2E 规范 | factory test 命令 |
 | `skills/04-deployment/` | CI/CD 流程、监控配置 | GitHub Actions |
-| `scripts/factory.js` | 主 CLI 入口 | 开发者命令行 |
-| `scripts/generator.js` | 代码生成核心逻辑 | factory.js |
-| `scripts/validator.js` | Schema 合规校验 | factory.js + ESLint |
-| `schemas/page.schema.json` | Schema 结构定义 | validator.js |
-| `schemas/examples/` | Schema 示例文件 | 开发者参考 |
+| `scripts/factory.js` | 主 CLI 入口 (v2.7) | 开发者命令行 |
+| `scripts/generators/` | 多端适配器驱动 (Vant/Element/React) | factory generate 命令 |
+| `scripts/utils/schema.js` | Schema 解析与 $ref 处理 | factory generate 命令 |
+| `.factory/models/` | [v2.6] 全局共享数据模型池 | factory generate 命令 |
+| `schemas/pages/` | 业务构架图纸库 (YAML) | 开发者核心资产 |
 | `rules/fe-factory-rules.js` | 自定义 ESLint 规则 | 项目 eslint.config.js |
 | `telemetry/tracker.ts` | 声明式埋点系统 | 项目 main.ts |
 | `tests/playwright.config.ts` | E2E 测试配置 | Playwright |

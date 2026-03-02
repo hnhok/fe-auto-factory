@@ -2,6 +2,23 @@
 
 这里记录着每一次核心基建工厂 `fe-auto-factory` 发布的功能节点，你可以在你的下游业务控制台中利用 `npx fe-factory update` 来同步最新的基建能力！
 
+## [v2.7.0] - 2026-03-02
+- ✨ 新增: **功能感知渲染 (Feature-Aware Scaffolding)**。Schema 支持 `features` 字段，一键开启 `pagination` (分页/无限滚动)、`pull_to_refresh` (下拉刷新)、`search_bar` (搜索栏) 等标准业务模式。
+- ✨ 新增: **状态驱动建模 (State Integration)**。Schema 支持 `state` 字段定义页面级响应式变量，自动同步至 Pinia Store 和 Vue Hook。
+- 🚀 增强: **AST 核心基建大修**。重构 `ast.js` 注入引擎，路由注入与埋点同步更加稳健。
+- 🔧 优化: 模型隔离机制，页面私有模型与全局共享池物理分离，确保生成代码的纯净度。
+
+## [v2.6.0] - 2026-03-02
+- ✨ 新增: **核心自愈系统 (Architectural Doctor)**。新增 `factory doctor` 命令，自动诊断 Node 版本、核心依赖、路径别名等环境风险并修复。
+- ✨ 新增: **全局模型池 (Global Model Pool)**。支持在 `.factory/models/` 定义共享模型，通过 `$ref: ModelName` 实现跨页面复用。
+- 🚀 增强: 采用 `js-yaml` 作为底层解析引擎，支持更复杂的嵌套对象和 YAML 高级语法。
+- 📦 升级: 默认支持 `vue3-element-admin` 和 `vue3-vant-h5` 的深度建模能力。
+
+## [v2.5.0] - 2026-03-01
+- ✨ 新增: **领域驱动建模 (Models & Types)**。支持在 Schema 中定义 `models`，自动生成 TypeScript 接口定义 (`src/api/types/*.ts`)。
+- ✨ 新增: **自动化 Mock 镜像 (Mock Generation)**。基于模型定义自动生成 Mock 服务数据，实现前后端并行开发。
+- 🚀 增强: API 与 Store 文件的类型化。自动根据模型推导请求函数返回值和 Store 状态类型。
+
 ## [v2.2.1]
 - 🚀 重构: 彻底解耦包体积！`init` 指令的执行方式由本地文件复制跃升为**云端模板动态浅克隆 (Git Shallow Clone)**。支持在拉取后自动安全剥离 `.git` 历史。
 
