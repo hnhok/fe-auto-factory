@@ -2,6 +2,10 @@
 
 这里记录着每一次核心基建工厂 `fe-auto-factory` 发布的功能节点，你可以在你的下游业务控制台中利用 `npx fe-factory update` 来同步最新的基建能力！
 
+## [v2.10.0] - 2026-03-02
+- ✨ 新增: **驱动生命周期钩子 (Driver Lifecycle Hooks)**。允许在渲染驱动中定义 `beforeGenerate` 和 `afterGenerate` 钩子函数。
+- 🚀 增强: 原生驱动内置了 `afterGenerate` 格式化支持，代码生成后将自动调用项目目录的 `npm run lint -- --fix`，确保生成代码第一时间符合团队定制的 Prettier/ESLint 规范。
+
 ## [v2.9.0] - 2026-03-02
 - ✨ 新增: **增量更新与安全插槽 (Smart Patching)**。通过标记注释 `<!-- [FACTORY-CUSTOM-START] -->` 与 `// [FACTORY-SCRIPT-START]` 实现对开发者自定义代码块的保留。再次生成页面时不再暴戾覆盖已有逻辑！
 - 🔧 优化: `ast.js` 扩展 `extractSection` 提取引擎，为多种文件、多种语言的语法提供通用插槽提取方案。

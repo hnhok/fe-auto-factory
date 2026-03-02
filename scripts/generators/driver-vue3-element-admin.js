@@ -3,7 +3,21 @@
  */
 import { writeFileSync, readFileSync, mkdirSync, existsSync } from 'fs'
 import { join } from 'path'
+import { execSync } from 'child_process'
 import * as base from './base.js'
+
+export async function afterGenerate(params) {
+  const cwd = process.cwd()
+  const { page_id } = params
+  console.log(`  ✨ 正在尝试为 ${page_id} 执行自动化代码格式化 (ESLint/Prettier)...`)
+  try {
+    // 尝试执行本地配置的 lint 修复，让生成的代码直接符合团队风格
+    execSync('npm run lint -- --fix', { cwd, stdio: 'ignore' })
+    console.log(`  ✔ 格式化完成！`)
+  } catch (e) {
+    // 忽略格式化错误，不阻塞主流程
+  }
+}
 
 export async function generatePage(params) {
   const { page_id, title, layout, api_endpoints, camel, kebab, models = {}, features = {}, state = [] } = params

@@ -3,7 +3,19 @@
  */
 import { writeFileSync, readFileSync, mkdirSync, existsSync } from 'fs'
 import { join } from 'path'
+import { execSync } from 'child_process'
 import * as base from './base.js'
+
+export async function afterGenerate(params) {
+  const cwd = process.cwd()
+  const { page_id } = params
+  console.log(`  ✨ 正在尝试为 ${page_id} 执行自动化代码格式化 (ESLint/Prettier)...`)
+  try {
+    execSync('npm run lint -- --fix', { cwd, stdio: 'ignore' })
+    console.log(`  ✔ 格式化完成！`)
+  } catch (e) {
+  }
+}
 
 export async function generatePage(params) {
   const { page_id, title, layout, api_endpoints, camel, kebab, models = {}, features = {}, state = [] } = params

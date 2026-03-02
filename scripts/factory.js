@@ -14,7 +14,7 @@ import { parseFrontmatter } from './utils/schema.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
-const FACTORY_VERSION = '2.9.0'
+const FACTORY_VERSION = '2.10.0'
 
 // ─── ANSI Color Helpers ───────────────────────────────────────────────────────
 const c = {
@@ -291,11 +291,24 @@ async function cmdGenerate(args) {
     }
 
     // ─── 执行生成 ───────────────────────────────────────────
-    await generator.generatePage({
+    const generateParams = {
       page_id, title, layout, api_endpoints, components, track, features, state,
       models: pageModels, globalModels, camel, kebab,
       config: factoryConfig // 将合并后的配置注入驱动
-    })
+    }
+
+    if (typeof generator.beforeGenerate === 'function') {
+      log.info(`[Hook] 执行驱动前置钩子 (beforeGenerate)...`)
+      await generator.beforeGenerate(generateParams)
+    }
+
+    await generator.generatePage(generateParams)
+
+    if (typeof generator.afterGenerate === 'function') {
+      log.info(`[Hook] 执行驱动后置钩子 (afterGenerate)...`)
+      await generator.afterGenerate(generateParams)
+    }
+
   } catch (err) {
     log.error(`渲染驱动加载或执行失败，预设 [${preset}] 可能尚不支持或代码有误。`)
     console.error(err)
