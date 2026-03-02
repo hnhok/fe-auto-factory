@@ -11,7 +11,7 @@ import { execSync, spawnSync } from 'child_process'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
-const FACTORY_VERSION = '2.0.2'
+const FACTORY_VERSION = '2.1.0'
 
 // ─── ANSI Color Helpers ───────────────────────────────────────────────────────
 const c = {
@@ -390,6 +390,29 @@ async function cmdSync(args) {
   await syncModule.syncSwagger(swaggerUrl)
 }
 
+// ─── Command: update ────────────────────────────────────────────────────────────
+async function cmdUpdate() {
+  printBanner()
+  log.step(`更新工厂基建资产...`)
+
+  // 1. 同步 AI 工作流
+  const sourceAgentDir = join(ROOT, '.agent')
+  if (existsSync(sourceAgentDir)) {
+    log.info('🔄 同步 .agent 魔法流...')
+    cpSync(sourceAgentDir, join(process.cwd(), '.agent'), { recursive: true })
+  }
+
+  // 2. 同步 Schema 定义
+  const sourceSchemaDir = join(ROOT, 'schemas')
+  if (existsSync(sourceSchemaDir)) {
+    log.info('🔄 同步 Schema 严控规则库...')
+    cpSync(sourceSchemaDir, join(process.cwd(), 'schemas'), { recursive: true })
+  }
+
+  log.success(`基建同步完成！请确保已通过 npm install @hnhok/fe-auto-factory@latest 拉下了最新版本的依赖`)
+  console.log('')
+}
+
 // ─── Main Router ──────────────────────────────────────────────────────────────
 const [, , command, ...rest] = process.argv
 
@@ -400,6 +423,7 @@ switch (command) {
   case 'test': await cmdTest(rest); break
   case 'report': await cmdReport(rest); break
   case 'sync': await cmdSync(rest); break
+  case 'update': await cmdUpdate(); break
   case '--version':
   case '-v':
     console.log(`FE-Auto-Factory v${FACTORY_VERSION}`)
@@ -419,12 +443,18 @@ switch (command) {
             { name: '📦 初始化新项目', value: 'init' },
             { name: '🌐 同步 Swagger 接口', value: 'sync' },
             { name: '✅ 运行质量检查', value: 'validate' },
+            { name: '🔄 从远端同步基建升级 (Update)', value: 'update' },
             { name: '❌ 退出', value: 'exit' }
           ]
         }
       ]);
 
       if (action === 'exit') process.exit(0);
+
+      if (action === 'update') {
+        await cmdUpdate();
+        process.exit(0);
+      }
 
       if (action === 'generate') {
         const fs = await import('fs');
