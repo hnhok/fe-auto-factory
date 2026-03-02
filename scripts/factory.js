@@ -14,7 +14,7 @@ import { parseFrontmatter } from './utils/schema.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
-const FACTORY_VERSION = '2.3.0'
+const FACTORY_VERSION = '2.4.0'
 
 // ─── ANSI Color Helpers ───────────────────────────────────────────────────────
 const c = {
@@ -226,38 +226,53 @@ async function cmdGenerate(args) {
   log.info(`生成页面: ${page_id} (${title})`)
   log.gray(`布局: ${layout} | API: ${api_endpoints.join(', ') || '无'} | 组件: ${components.join(', ') || '无'}`)
 
-  // 从业务工程读取 factory 身份配置找出 Preset
-  let preset = 'vue3-vant-h5'
-  const configPath = join(process.cwd(), '.factory', 'config.json')
-  if (existsSync(configPath)) {
+  // ─── 统一配置加载 ───────────────────────────────────────────
+  const projectRoot = process.cwd()
+  const legacyConfigPath = join(projectRoot, '.factory', 'config.json')
+  const modernConfigPath = join(projectRoot, '.factoryrc.json')
+
+  let factoryConfig = { preset: 'vue3-vant-h5' }
+
+  // 1. 加载 Preset (优先从旧版目录加载，保持兼容)
+  if (existsSync(legacyConfigPath)) {
     try {
-      const factoryConfig = JSON.parse(readFileSync(configPath, 'utf-8'))
-      if (factoryConfig.preset) {
-        preset = factoryConfig.preset
-      }
-    } catch (e) {
-      log.warn('无法解析 .factory/config.json，默认退回 vue3-vant-h5')
-    }
+      factoryConfig = { ...factoryConfig, ...JSON.parse(readFileSync(legacyConfigPath, 'utf-8')) }
+    } catch (e) { /* ignore */ }
   }
 
-  // 根据预设动态加载对应的生成引擎 Driver
-  let driverModuleFile = `./generators/driver-${preset}.js`
-  const driverFullPath = join(__dirname, driverModuleFile)
-
-  if (!existsSync(driverFullPath)) {
-    log.warn(`找不到预设 [${preset}] 的渲染驱动，回退至基础 H5 引擎...`)
-    driverModuleFile = './generators/driver-vue-vant.js'
+  // 2. 加载个性化路径配置 (覆盖)
+  if (existsSync(modernConfigPath)) {
+    try {
+      factoryConfig = { ...factoryConfig, ...JSON.parse(readFileSync(modernConfigPath, 'utf-8')) }
+    } catch (e) { /* ignore */ }
   }
 
-  log.info(`工厂接管：使用渲染驱动 [${preset}]`)
+  const preset = factoryConfig.preset
+  log.info(`工厂接管：预设 [${preset}] | 项目根目录: ${projectRoot}`)
 
-  // 读取模板并渲染
+  // ─── 驱动沙箱加载 (优先级: 本地项目 > 工厂内置) ──────────────────────
+  let generator = null
+  const localDriverPath = join(projectRoot, '.factory', 'drivers', `driver-${preset}.js`)
+  const builtInDriverPath = join(__dirname, 'generators', `driver-${preset}.js`)
+
   try {
-    const generatorPath = new URL(driverModuleFile, import.meta.url).href
-    const generator = await import(generatorPath)
-    await generator.generatePage({ page_id, title, layout, api_endpoints, components, camel, kebab })
+    if (existsSync(localDriverPath)) {
+      log.info(`⚡ 发现项目本地自定义驱动: ${localDriverPath}`)
+      generator = await import(new URL('file:///' + localDriverPath.replace(/\\/g, '/')))
+    } else if (existsSync(builtInDriverPath)) {
+      generator = await import(new URL(`./generators/driver-${preset}.js`, import.meta.url).href)
+    } else {
+      log.warn(`找不到预设 [${preset}] 的渲染驱动，回滚至基础 H5 驱动...`)
+      generator = await import(new URL(`./generators/driver-vue-vant.js`, import.meta.url).href)
+    }
+
+    // ─── 执行生成 ───────────────────────────────────────────
+    await generator.generatePage({
+      page_id, title, layout, api_endpoints, components, camel, kebab,
+      config: factoryConfig // 将合并后的配置注入驱动
+    })
   } catch (err) {
-    log.error(`渲染驱动加载失败，预设 [${preset}] 的核心驱动模块可能尚不支持或有错。`)
+    log.error(`渲染驱动加载或执行失败，预设 [${preset}] 可能尚不支持或代码有误。`)
     console.error(err)
     process.exit(1)
   }

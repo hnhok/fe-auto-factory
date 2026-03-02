@@ -17,10 +17,12 @@
 
 **目标：从“指令驱动”向“可视/可插拔”演进。**
 
-*   **[核心] 插件化驱动系统 (Plugin Architecture)**：
-    *   将渲染驱动 (`driver-*.js`) 彻底移出核心包，支持通过 `npm install @org/factory-driver-xxx` 的方式动态加载第三方插件。
-*   **[体验] 可视化图纸搭建工作台 (Low-Code GUI)**：
-    *   启动 `fe-factory ui` 生成本地 Web 界面，支持通过拖拽组件、点选接口来生成 YAML Schema，大幅降低非技术人员的使用心智。
+*   **[Done] 驱动沙箱系统 (Driver Sandbox)**:
+    *   实现了本地驱动优先加载机制。开发者可以在项目 `.factory/drivers/` 下定义私有驱动，实现对中央工厂引擎的无损扩展。
+*   **[Done] 增量原子手术 (Incremental Surgery)**:
+    *   API 生成已切至 AST 增量合并模式。即便文件已存在，工厂也能通过分析语法树，安全地追加新导出的接口，不再暴力覆盖。
+*   **[In Progress] 可视化图纸搭建工作台 (Low-Code GUI)**:
+    *   启动 `fe-factory ui` 生成本地 Web 界面，支持通过拖拽组件、点选接口来生成 YAML Schema。
 *   **[稳健] 全量 AST 突变覆盖**：
     *   将 Hook 注入、API 导出、Store 注册等所有文件修改逻辑全部切换为 AST 操作，确保 100% 的代码合并成功率。
 

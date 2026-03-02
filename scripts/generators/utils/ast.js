@@ -76,6 +76,26 @@ export function injectRoute(routerPath, { path, name, componentPath, meta = {} }
 }
 
 /**
+ * 确保一个文件中有特定的命名导出 (如果不存在则注入)
+ */
+export function ensureNamedExport(filePath, { name, content }) {
+    if (!existsSync(filePath)) return false
+
+    const project = new Project()
+    const sourceFile = project.addSourceFileAtPath(filePath)
+
+    // 检查是否已有同名导出
+    const existingExport = sourceFile.getExportSymbols().find(s => s.getName() === name)
+    if (existingExport) return true
+
+    // 在文件末尾追加
+    sourceFile.addStatements(`\n/** [FACTORY-ADD] */\nexport ${content}`)
+
+    sourceFile.saveSync()
+    return true
+}
+
+/**
  * 通用：在文件的 Top-level 注入 Import 语句 (如果不存在)
  */
 export function ensureImport(filePath, moduleSpecifier, namedImports = []) {

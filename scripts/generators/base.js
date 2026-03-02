@@ -4,53 +4,73 @@
  */
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
-import { injectRoute } from './utils/ast.js'
+import { injectRoute, ensureNamedExport } from './utils/ast.js'
 
 /**
- * 通用配置读取
+ * 通用配置读取 (支持多版本配置文件合并)
  */
 export function getFactoryConfig(cwd) {
-    const configPath = join(cwd, '.factoryrc.json')
-    const defaultConfig = {
+    const legacyPath = join(cwd, '.factory', 'config.json')
+    const modernPath = join(cwd, '.factoryrc.json')
+
+    let config = {
         viewsDir: 'src/views',
         apiDir: 'src/api',
         storeDir: 'src/store',
-        testDir: 'tests/e2e'
+        testDir: 'tests/e2e',
+        preset: 'vue3-vant-h5'
     }
-    return existsSync(configPath)
-        ? { ...defaultConfig, ...JSON.parse(readFileSync(configPath, 'utf-8')) }
-        : defaultConfig
+
+    if (existsSync(legacyPath)) {
+        try { config = { ...config, ...JSON.parse(readFileSync(legacyPath, 'utf-8')) } } catch (e) { }
+    }
+    if (existsSync(modernPath)) {
+        try { config = { ...config, ...JSON.parse(readFileSync(modernPath, 'utf-8')) } } catch (e) { }
+    }
+    return config
 }
 
 /**
- * 生成 API Service (通用)
+ * 生成 API Service (支持 AST 增量合并)
  */
 export function generateApiFile({ cwd, config, page_id, api_endpoints, kebab }) {
     const dir = join(cwd, config.apiDir)
     mkdirSync(dir, { recursive: true })
+    const filePath = join(dir, `${kebab}.ts`)
 
-    const functions = api_endpoints.map(name => {
-        const isGet = /^(get|query|list|fetch|read|load)/i.test(name)
-        const method = isGet ? 'get' : 'post'
-        const endpoint = `/api/${kebab}/${camelToPath(name)}`
-        return `
+    if (existsSync(filePath)) {
+        // 增量模式：使用 AST 注入新导出的函数
+        log.info(`  ⚡ API 文件已存在，进入 AST 增量合并模式...`)
+        api_endpoints.forEach(name => {
+            const isGet = /^(get|query|list|fetch|read|load)/i.test(name)
+            const method = isGet ? 'get' : 'post'
+            const endpoint = `/api/${kebab}/${camelToPath(name)}`
+            const content = `const ${name} = (${isGet ? 'params?: Record<string, any>' : 'data: Record<string, any>'}) => request.${method}(\`${endpoint}\`, { ${isGet ? 'params' : 'data'} })`
+
+            const success = ensureNamedExport(filePath, { name, content })
+            if (success) console.log(`    ✔ 增量注入 API: ${name}`)
+        })
+    } else {
+        // 全量模式：创建新文件
+        const functions = api_endpoints.map(name => {
+            const isGet = /^(get|query|list|fetch|read|load)/i.test(name)
+            const method = isGet ? 'get' : 'post'
+            const endpoint = `/api/${kebab}/${camelToPath(name)}`
+            return `
 /** ${chineseName(name)} */
 export const ${name} = (${isGet ? 'params?: Record<string, any>' : 'data: Record<string, any>'}) =>
   request.${method}(\`${endpoint}\`, { ${isGet ? 'params' : 'data'} })`
-    }).join('\n')
+        }).join('\n')
 
-    const content = `/**
+        const content = `/**
  * ${page_id} API Service
  * [FACTORY-GENERATED] 基于 Schema 自动生成
- * ⚠️  若后端提供 Swagger，请使用 factory sync --swagger 重新生成规范类型
  */
 import request from '@/utils/request'
 ${functions || '\n// TODO: 添加 API 函数'}
 `
-    const filePath = join(dir, `${kebab}.ts`)
-    if (!existsSync(filePath)) {
         writeFileSync(filePath, content, 'utf-8')
-        console.log(`  ✔ API: ${config.apiDir}/${kebab}.ts`)
+        console.log(`  ✔ API: ${config.apiDir}/${kebab}.ts (New)`)
     }
 }
 
@@ -157,4 +177,8 @@ function chineseName(name) {
     const prefix = name.match(/^(get|set|update|delete|create|list|query|fetch)/i)?.[0]?.toLowerCase()
     const map = { get: '获取', set: '设置', update: '更新', delete: '删除', create: '创建', list: '列表', query: '查询', fetch: '拉取' }
     return (map[prefix] || '') + name.replace(/^(get|set|update|delete|create|list|query|fetch)/i, '')
+}
+
+const log = {
+    info: (msg) => console.log(`\x1b[90m${msg}\x1b[0m`),
 }
