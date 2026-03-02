@@ -2,29 +2,43 @@ import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import { spawnSync } from 'child_process'
 
-const SYSTEM_PROMPT = `
-你是一个资深的移动端及中后台前端架构师。
-我会给你发一张产品原型截图或UI设计稿，你需要将界面拆解，并输出符合我方框架规范的 YAML Schema 文件。
-必须遵守以下输出格式（不要输出除 YAML 之外的任何多余推导和 markdown 代码块标识，**只输出纯 YAML 文本**）：
+export async function cmdImgToCode(imagePath) {
+    // 从当前工程读取架构标识 (Preset)
+    let preset = 'vue3-vant-h5'
+    const configPath = join(process.cwd(), '.factory', 'config.json')
+    if (existsSync(configPath)) {
+        try {
+            const factoryConfig = JSON.parse(readFileSync(configPath, 'utf-8'))
+            if (factoryConfig.preset) preset = factoryConfig.preset
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    const isAdmin = preset === 'vue3-element-admin'
+
+    const SYSTEM_PROMPT = `
+你是一个资深前端架构师。当前工程栈: ${isAdmin ? '【PC管理系统 Vue3 + Element Plus】' : '【移动端H5 Vue3 + Vant 4】'}。
+我会发给你一张产品原型截图或UI设计稿，请将其拆分成 YAML Schema。
+禁止输出多余的 Markdown 引言，**只能输出纯 YAML 文本**。
 
 ---
-page_id: PageName            # 根据页面含义生成，大驼峰结构，如 ProductList
+page_id: PageName            # 根据页面含义生成，大驼峰结构 (如 ProductList)
 title: 页面标题              # 提取出的中文页面主题
-layout: blank                # 可选: blank (普通H5), admin (后台), tabbar (带底部导航)
-route: /page-name            # kebab-case 的前端路由
-api_endpoints:               # 观察页面上有哪些数据，推测 1~3个 必备的 API 函数名，如 getProductList
+layout: ${isAdmin ? 'admin' : 'blank'}                # 采用 ${isAdmin ? 'admin' : 'blank'} 布局
+route: /page-name            # kebab-case 前端路由
+api_endpoints:               # 观察页面数据，推测1~3个API函数名 (如 getPageData)
   - yourApiName
-components:                  # 观察设计稿，分析需要导入的 Vant 4 核心组件白名单。如 VanButton, VanList, VanCell, VanNavBar, VanImage
-  - VanNavBar
-state:                       # 分析页面需要用到的几个核心响应式数据 (名称: 类型)
+components:                  # ${isAdmin ? '提列需导入的核心 Element Plus (如 ElTable, ElButton, ElForm)' : '提列需导入的核心 Vant 4 (如 VanButton, VanList)'}
+  - ${isAdmin ? 'ElButton' : 'VanNavBar'}
+state:                       # 分析页面核心响应式数据
   - pageData: object
+  - tableList: array
 track:                       # 埋点系统事件 ID
   - page-name-view
 version: "1.0"
 ---
 `
-
-export async function cmdImgToCode(imagePath) {
     if (!existsSync(imagePath)) {
         console.error(`❌ 图片不存在: ${imagePath}`)
         process.exit(1)

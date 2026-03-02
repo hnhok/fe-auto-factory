@@ -11,7 +11,7 @@ import { execSync, spawnSync } from 'child_process'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
-const FACTORY_VERSION = '2.1.1'
+const FACTORY_VERSION = '2.2.0'
 
 // ─── ANSI Color Helpers ───────────────────────────────────────────────────────
 const c = {
@@ -44,15 +44,38 @@ function printBanner() {
 }
 
 // ─── Command: init ────────────────────────────────────────────────────────────
-async function cmdInit(projectName) {
-  if (!projectName) {
-    log.error('请提供项目名称。用法: factory init <project-name>')
-    process.exit(1)
-  }
+async function cmdInit(initialProjectName) {
   printBanner()
-  log.step(`初始化项目: ${c.bold}${projectName}${c.reset}`)
 
-  const templateSrc = resolve(ROOT, '..', 'vue3-vant-h5')
+  let projectName = initialProjectName
+  let preset = 'vue3-vant-h5'
+
+  const inquirer = (await import('inquirer')).default;
+
+  if (!projectName) {
+    const answers = await inquirer.prompt([
+      { type: 'input', name: 'projectName', message: '请输入新项目的名称:', validate: i => i ? true : '项目名称不能为空' }
+    ]);
+    projectName = answers.projectName;
+  }
+
+  const tpAnswers = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'preset',
+      message: '请选择目标业务场景模板:',
+      choices: [
+        { name: '📱 移动端 H5 业务模板 (Vue3 + Vant)', value: 'vue3-vant-h5' },
+        { name: '💻 PC 中后台管理系统 (Vue3 + Element Plus)', value: 'vue3-element-admin' },
+        { name: '⚛️ PC 中后台管理系统 (React + Ant Design) [敬请期待]', value: 'react-antd-admin' }
+      ]
+    }
+  ]);
+  preset = tpAnswers.preset;
+
+  log.step(`初始化项目: ${c.bold}${projectName}${c.reset} [采用模板: ${preset}]`)
+
+  const templateSrc = resolve(ROOT, '..', preset)
   const dest = resolve(process.cwd(), projectName)
 
   if (existsSync(dest)) {
@@ -60,16 +83,23 @@ async function cmdInit(projectName) {
     process.exit(1)
   }
 
+  // Fallback to basic template if standard doesn't exist yet but vue3-vant-h5 does (for hacky local dev)
+  let actualTemplateSrc = templateSrc
+  if (!existsSync(actualTemplateSrc) && preset !== 'vue3-vant-h5') {
+    log.warn(`⚠️ 本地尚不存在 "${preset}" 模板库，作为演示将回退使用 "vue3-vant-h5" 拷贝...`);
+    actualTemplateSrc = resolve(ROOT, '..', 'vue3-vant-h5')
+  }
+
   log.info('拷贝项目模板...')
   // Windows 兼容的拷贝方式
   const result = spawnSync(
     'xcopy',
-    [templateSrc, dest, '/E', '/I', '/Q', '/EXCLUDE:' + resolve(ROOT, 'scripts', 'xcopy-excludes.txt')],
+    [actualTemplateSrc, dest, '/E', '/I', '/Q', '/EXCLUDE:' + resolve(ROOT, 'scripts', 'xcopy-excludes.txt')],
     { stdio: 'inherit', shell: true }
   )
   if (result.status !== 0) {
     // fallback: 用 robocopy
-    spawnSync('robocopy', [templateSrc, dest, '/E', '/XD', 'node_modules', 'dist', '.git'], { stdio: 'inherit', shell: true })
+    spawnSync('robocopy', [actualTemplateSrc, dest, '/E', '/XD', 'node_modules', 'dist', '.git'], { stdio: 'inherit', shell: true })
   }
 
   // 写入项目配置
@@ -84,6 +114,7 @@ async function cmdInit(projectName) {
   // 创建工厂配置文件
   const factoryConfig = {
     projectName,
+    preset,
     createdAt: new Date().toISOString(),
     factoryVersion: FACTORY_VERSION,
     skills: ['01-requirements', '02-development', '03-testing', '04-deployment'],
@@ -172,10 +203,38 @@ async function cmdGenerate(args) {
   log.info(`生成页面: ${page_id} (${title})`)
   log.gray(`布局: ${layout} | API: ${api_endpoints.join(', ') || '无'} | 组件: ${components.join(', ') || '无'}`)
 
+  // 从业务工程读取 factory 身份配置找出 Preset
+  let preset = 'vue3-vant-h5'
+  const configPath = join(process.cwd(), '.factory', 'config.json')
+  if (existsSync(configPath)) {
+    try {
+      const factoryConfig = JSON.parse(readFileSync(configPath, 'utf-8'))
+      if (factoryConfig.preset) {
+        preset = factoryConfig.preset
+      }
+    } catch (e) {
+      log.warn('无法解析 .factory/config.json，默认退回 vue3-vant-h5')
+    }
+  }
+
+  // 根据预设加载对应的生成引擎 Driver
+  let driverModuleFile = './generators/driver-vue-vant.js'
+  if (preset === 'vue3-element-admin') {
+    driverModuleFile = './generators/driver-vue-element.js'
+  }
+
+  log.info(`工厂接管：使用渲染驱动 [${preset}]`)
+
   // 读取模板并渲染
-  const generatorPath = new URL('./generator.js', import.meta.url).href
-  const generator = await import(generatorPath)
-  await generator.generatePage({ page_id, title, layout, api_endpoints, components, camel, kebab })
+  try {
+    const generatorPath = new URL(driverModuleFile, import.meta.url).href
+    const generator = await import(generatorPath)
+    await generator.generatePage({ page_id, title, layout, api_endpoints, components, camel, kebab })
+  } catch (err) {
+    log.error(`渲染驱动加载失败，预设 [${preset}] 的核心驱动模块可能尚不支持或有错。`)
+    console.error(err)
+    process.exit(1)
+  }
 
   log.success(`代码生成完成！`)
   log.gray(`生成文件:`)
