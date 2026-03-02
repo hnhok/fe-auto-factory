@@ -14,7 +14,7 @@ import { parseFrontmatter } from './utils/schema.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
-const FACTORY_VERSION = '2.4.1'
+const FACTORY_VERSION = '2.5.0'
 
 // ─── ANSI Color Helpers ───────────────────────────────────────────────────────
 const c = {
@@ -62,19 +62,24 @@ async function cmdInit(initialProjectName) {
     projectName = answers.projectName;
   }
 
-  const tpAnswers = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'preset',
-      message: '请选择目标业务场景模板:',
-      choices: [
-        { name: '📱 移动端 H5 业务模板 (Vue3 + Vant)', value: 'vue3-vant-h5' },
-        { name: '💻 PC 中后台管理系统 (Vue3 + Element Plus)', value: 'vue3-element-admin' },
-        { name: '⚛️ PC 中后台管理系统 (React + Ant Design) [敬请期待]', value: 'react-antd-admin' }
-      ]
-    }
-  ]);
-  preset = tpAnswers.preset;
+  const presetFlagIdx = process.argv.indexOf('--preset')
+  preset = presetFlagIdx !== -1 ? process.argv[presetFlagIdx + 1] : null
+
+  if (!preset) {
+    const tpAnswers = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'preset',
+        message: '请选择目标业务场景模板:',
+        choices: [
+          { name: '📱 移动端 H5 业务模板 (Vue3 + Vant)', value: 'vue3-vant-h5' },
+          { name: '💻 PC 中后台管理系统 (Vue3 + Element Plus)', value: 'vue3-element-admin' },
+          { name: '⚛️ PC 中后台管理系统 (React + Ant Design) [敬请期待]', value: 'react-antd-admin' }
+        ]
+      }
+    ])
+    preset = tpAnswers.preset
+  }
 
   log.step(`初始化项目: ${c.bold}${projectName}${c.reset} [采用模板: ${preset}]`)
 
@@ -201,30 +206,31 @@ async function cmdGenerate(args) {
   log.info(`使用 Ajv 校验 Schema 规范...`)
   try {
     const Ajv = (await import('ajv')).default
-    const ajv = new Ajv()
+    const ajv = new Ajv({ strict: false })
     const schemaDefPath = resolve(ROOT, 'schemas/page.schema.json')
     if (existsSync(schemaDefPath)) {
       const schemaDef = JSON.parse(readFileSync(schemaDefPath, 'utf-8'))
       const validate = ajv.compile(schemaDef)
       const valid = validate(schema)
+      console.log('DEBUG SCHEMA:', schema)
       if (!valid) {
         log.error('Schema 规范不符，请修复以下错误:')
-        validate.errors.forEach(err => {
-          console.log(`  ${c.red}- [${err.instancePath || 'root'}] ${err.message}${c.reset}`)
-        })
+        console.log(JSON.stringify(validate.errors, null, 2))
         process.exit(1)
+      } else {
+        log.success('Schema 校验通过')
       }
     }
   } catch (e) {
     log.warn(`Ajv 校验环节报错或未安装，已跳过强校验: ${e.message}`)
   }
 
-  const { page_id, title = page_id, layout = 'blank', api_endpoints = [], components = [], track = [] } = schema
+  const { page_id, title = page_id, layout = 'blank', api_endpoints = [], components = [], track = [], models = {} } = schema
   const camel = toCamelCase(page_id)
   const kebab = toKebabCase(page_id)
 
   log.info(`生成页面: ${page_id} (${title})`)
-  log.gray(`布局: ${layout} | API: ${api_endpoints.join(', ') || '无'} | 组件: ${components.join(', ') || '无'} | 埋点: ${track.length} 项`)
+  log.gray(`布局: ${layout} | API: ${api_endpoints.join(', ') || '无'} | 组件: ${components.join(', ') || '无'} | 埋点: ${track.length} 项 | 模型: ${Object.keys(models).length} 个`)
 
   // ─── 统一配置加载 ───────────────────────────────────────────
   const projectRoot = process.cwd()
@@ -268,7 +274,7 @@ async function cmdGenerate(args) {
 
     // ─── 执行生成 ───────────────────────────────────────────
     await generator.generatePage({
-      page_id, title, layout, api_endpoints, components, track, camel, kebab,
+      page_id, title, layout, api_endpoints, components, track, models, camel, kebab,
       config: factoryConfig // 将合并后的配置注入驱动
     })
   } catch (err) {
@@ -281,9 +287,11 @@ async function cmdGenerate(args) {
   log.gray(`生成文件:`)
   log.gray(`  src/views/${page_id}/index.vue`)
   log.gray(`  src/views/${page_id}/hooks/use${page_id}.ts`)
-  log.gray(`  src/api/${kebab}.ts`)
-  log.gray(`  src/store/${kebab}.ts`)
-  log.gray(`  tests/e2e/${kebab}.spec.ts`)
+  log.gray(`    src/api/${kebab}.ts
+    src/api/types/${kebab}.ts
+    src/store/${kebab}.ts
+    mock/${kebab}.mock.ts
+    tests/e2e/${kebab}.spec.ts`)
 }
 
 // ─── Command: validate ────────────────────────────────────────────────────────

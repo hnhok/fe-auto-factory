@@ -4,7 +4,7 @@
  */
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
-import { injectRoute, ensureNamedExport, ensureEnumMember } from './utils/ast.js'
+import { injectRoute, ensureNamedExport, ensureEnumMember, ensureImport } from './utils/ast.js'
 
 /**
  * 通用配置读取 (支持多版本配置文件合并)
@@ -31,27 +31,114 @@ export function getFactoryConfig(cwd) {
 }
 
 /**
- * 生成 API Service (支持 AST 增量合并)
+ * 生成 TS 类型定义文件 (Deep Type Safety)
  */
-export function generateApiFile({ cwd, config, page_id, api_endpoints, kebab }) {
+export function generateTypesFile({ cwd, config, page_id, kebab, models }) {
+    if (!models || Object.keys(models).length === 0) return
+
+    const dir = join(cwd, config.apiDir, 'types')
+    mkdirSync(dir, { recursive: true })
+    const filePath = join(dir, `${kebab}.ts`)
+
+    let content = `/**
+ * ${page_id} 自动生成的类型定义
+ * [FACTORY-GENERATED] 基于 Schema Models
+ */\n\n`
+
+    for (const [name, fields] of Object.entries(models)) {
+        content += `export interface I${name} {\n`
+        for (const [fName, fType] of Object.entries(fields)) {
+            const tsType = typeof fType === 'string' ? fType : 'any'
+            content += `  ${fName}: ${tsType}\n`
+        }
+        content += `}\n\n`
+    }
+
+    writeFileSync(filePath, content, 'utf-8')
+    console.log(`  ✔ Types: ${config.apiDir}/types/${kebab}.ts`)
+}
+
+/**
+ * 生成 Mock 数据镜像 (Parallel Development)
+ */
+export function generateMockFile({ cwd, page_id, kebab, models }) {
+    if (!models || Object.keys(models).length === 0) return
+
+    const dir = join(cwd, 'mock')
+    mkdirSync(dir, { recursive: true })
+    const filePath = join(dir, `${kebab}.mock.ts`)
+
+    let mockData = {}
+    for (const [name, fields] of Object.entries(models)) {
+        const item = {}
+        for (const [fName, fType] of Object.entries(fields)) {
+            if (fType === 'string') item[fName] = `@ctitle(5)`
+            else if (fType === 'number') item[fName] = `@integer(1, 100)`
+            else if (fType === 'boolean') item[fName] = `@boolean`
+            else item[fName] = null
+        }
+        mockData[name] = item
+    }
+
+    const content = `/**
+ * ${page_id} Mock 镜像
+ * [FACTORY-GENERATED]
+ */
+import { defineMock } from 'vite-plugin-mock'
+
+export default defineMock([
+  {
+    url: '/api/${kebab}/list',
+    method: 'get',
+    response: () => {
+      return {
+        code: 0,
+        data: Array(10).fill(null).map((_, i) => ({
+          id: i + 1,
+          ...${JSON.stringify(Object.values(mockData)[0] || {})}
+        })),
+        message: 'ok'
+      }
+    }
+  }
+])
+`
+    writeFileSync(filePath, content, 'utf-8')
+    console.log(`  ✔ Mock: mock/${kebab}.mock.ts`)
+}
+
+/**
+ * 生成 API Service (支持 TS 类型注入 & AST 增量合并)
+ */
+export function generateApiFile({ cwd, config, page_id, api_endpoints, kebab, models }) {
     const dir = join(cwd, config.apiDir)
     mkdirSync(dir, { recursive: true })
     const filePath = join(dir, `${kebab}.ts`)
 
+    const hasModels = models && Object.keys(models).length > 0
+    const firstModel = hasModels ? `I${Object.keys(models)[0]}` : 'any'
+
     if (existsSync(filePath)) {
-        // 增量模式：使用 AST 注入新导出的函数
+        // 增量模式
         log.info(`  ⚡ API 文件已存在，进入 AST 增量合并模式...`)
+
+        if (hasModels) {
+            ensureImport(filePath, `./types/${kebab}`, Object.keys(models).map(m => `I${m}`))
+        }
+
         api_endpoints.forEach(name => {
             const isGet = /^(get|query|list|fetch|read|load)/i.test(name)
             const method = isGet ? 'get' : 'post'
             const endpoint = `/api/${kebab}/${camelToPath(name)}`
-            const content = `const ${name} = (${isGet ? 'params?: Record<string, any>' : 'data: Record<string, any>'}) => request.${method}(\`${endpoint}\`, { ${isGet ? 'params' : 'data'} })`
+            const returnType = isGet && name.toLowerCase().includes('list') ? `Promise<{ data: ${firstModel}[] }>` : `Promise<any>`
+
+            const content = `const ${name} = (${isGet ? 'params?: Record<string, any>' : 'data: Record<string, any>'}): ${returnType} => request.${method}(\`${endpoint}\`, { ${isGet ? 'params' : 'data'} })`
 
             const success = ensureNamedExport(filePath, { name, content })
             if (success) console.log(`    ✔ 增量注入 API: ${name}`)
         })
     } else {
-        // 全量模式：创建新文件
+        // 全量模式
         const functions = api_endpoints.map(name => {
             const isGet = /^(get|query|list|fetch|read|load)/i.test(name)
             const method = isGet ? 'get' : 'post'
@@ -62,12 +149,14 @@ export const ${name} = (${isGet ? 'params?: Record<string, any>' : 'data: Record
   request.${method}(\`${endpoint}\`, { ${isGet ? 'params' : 'data'} })`
         }).join('\n')
 
+        const typeImport = hasModels ? `import { ${Object.keys(models).map(m => `I${m}`).join(', ')} } from './types/${kebab}'\n` : ''
+
         const content = `/**
  * ${page_id} API Service
  * [FACTORY-GENERATED] 基于 Schema 自动生成
  */
 import request from '@/utils/request'
-${functions || '\n// TODO: 添加 API 函数'}
+${typeImport}${functions || '\n// TODO: 添加 API 函数'}
 `
         writeFileSync(filePath, content, 'utf-8')
         console.log(`  ✔ API: ${config.apiDir}/${kebab}.ts (New)`)
@@ -77,9 +166,13 @@ ${functions || '\n// TODO: 添加 API 函数'}
 /**
  * 生成 Pinia Store (通用)
  */
-export function generateStoreFile({ cwd, config, page_id, camel, kebab }) {
+export function generateStoreFile({ cwd, config, page_id, camel, kebab, models }) {
     const dir = join(cwd, config.storeDir)
     mkdirSync(dir, { recursive: true })
+
+    const hasModels = models && Object.keys(models).length > 0
+    const firstModel = hasModels ? `I${Object.keys(models)[0]}` : 'any'
+    const typeImport = hasModels ? `import type { ${firstModel} } from '@/api/types/${kebab}'\n` : ''
 
     const content = `/**
  * ${page_id} Pinia Store
@@ -87,14 +180,14 @@ export function generateStoreFile({ cwd, config, page_id, camel, kebab }) {
  */
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-
+${typeImport}
 export const use${page_id}Store = defineStore('${kebab}', () => {
-  const ${camel}List = ref<any[]>([])
-  const ${camel}Detail = ref<any | null>(null)
+  const ${camel}List = ref<${firstModel}[]>([])
+  const ${camel}Detail = ref<${firstModel} | null>(null)
   const total = ref(0)
 
-  function set${page_id}List(list: any[]) { ${camel}List.value = list }
-  function set${page_id}Detail(detail: any) { ${camel}Detail.value = detail }
+  function set${page_id}List(list: ${firstModel}[]) { ${camel}List.value = list }
+  function set${page_id}Detail(detail: ${firstModel}) { ${camel}Detail.value = detail }
   function reset() {
     ${camel}List.value = []
     ${camel}Detail.value = null
@@ -198,7 +291,7 @@ export function syncTrackingAssets({ cwd, track }) {
     if (!existsSync(trackFilePath)) {
         writeFileSync(trackFilePath, `/**
  * 全局埋点事件 ID 定义池 [FACTORY]
- * 所有的埋点事件必须在此注册，极禁在业务端直接硬编码字符串 ID
+ * 所有的埋点事件必须在此注册，严禁在业务端直接硬编码字符串 ID
  */
 export enum TrackingEvents {
   APP_LAUNCH = 'app_launch'

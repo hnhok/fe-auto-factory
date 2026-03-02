@@ -7,17 +7,19 @@ import { join } from 'path'
 import * as base from './base.js'
 
 export async function generatePage(params) {
-  const { page_id, title, layout, api_endpoints, camel, kebab } = params
+  const { page_id, title, layout, api_endpoints, camel, kebab, models = {} } = params
   const cwd = process.cwd()
   const config = base.getFactoryConfig(cwd)
 
   // 1. 生成渲染驱动特有的逻辑 (UI 层)
   await generateViewFile({ cwd, config, page_id, title, layout, camel, kebab })
-  await generateHookFile({ cwd, config, page_id, title, api_endpoints, camel, kebab })
+  await generateHookFile({ cwd, config, page_id, title, api_endpoints, camel, kebab, models })
 
   // 2. 多端通用资产基建 (SUPERPOWERS)
-  base.generateApiFile({ cwd, config, page_id, api_endpoints, kebab })
-  base.generateStoreFile({ cwd, config, page_id, camel, kebab })
+  base.generateTypesFile({ cwd, config, page_id, kebab, models })
+  base.generateApiFile({ cwd, config, page_id, api_endpoints, kebab, models })
+  base.generateStoreFile({ cwd, config, page_id, camel, kebab, models })
+  base.generateMockFile({ cwd, page_id, kebab, models })
   base.generateTestFile({ cwd, config, page_id, title, api_endpoints, kebab, framework: 'vant' })
 
   // ── 新增: 原子组件与埋点同步 ──
@@ -68,22 +70,28 @@ const { loading, error, refresh } = use${page_id}()
   console.log(`  ✔ View: ${config.viewsDir}/${page_id}/index.vue (Vant)`)
 }
 
-async function generateHookFile({ cwd, config, page_id, title, api_endpoints, camel, kebab }) {
+async function generateHookFile({ cwd, config, page_id, title, api_endpoints, camel, kebab, models }) {
   const dir = join(cwd, config.viewsDir, page_id, 'hooks')
   const apiImportPath = `@/${config.apiDir.replace('src/', '')}/${kebab}`
   const primaryApi = api_endpoints[0] || null
+
+  const hasModels = models && Object.keys(models).length > 0
+  const firstModel = hasModels ? `I${Object.keys(models)[0]}` : 'any'
+  const typeImport = hasModels ? `import type { ${firstModel} } from '@/api/types/${kebab}'\n` : ''
 
   const content = `/**
  * use${page_id} — Composable [Vant]
  */
 import { ref, onMounted, reactive } from 'vue'
 import { showToast } from 'vant'
-${primaryApi ? `import { ${primaryApi} } from '${apiImportPath}'` : ''}
+${typeImport}${primaryApi ? `import { ${primaryApi} } from '${apiImportPath}'` : ''}
 
 export function use${page_id}() {
   const loading = ref(false)
   const error = ref<string | null>(null)
-  const state = reactive({ list: [] })
+  const state = reactive({ 
+    list: [] as ${firstModel}[]
+  })
 
   const fetchData = async () => {
     loading.value = true

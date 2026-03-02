@@ -19,10 +19,12 @@
 
 *   **[Done] 驱动沙箱系统 (Driver Sandbox)**:
     *   实现了本地驱动优先加载机制。开发者可以在项目 `.factory/drivers/` 下定义私有驱动，实现对中央工厂引擎的无损扩展。
-*   **[Done] 增量原子手术 (Incremental Surgery)**:
-    *   API 生成已切至 AST 增量合并模式。即便文件已存在，工厂也能通过分析语法树，安全地追加新导出的接口，不再暴力覆盖。
-*   **[In Progress] 可视化图纸搭建工作台 (Low-Code GUI)**:
+*   **[Done] Atomic Scaffolding & Tracking Sync**: v2.4+ Component skeleton & enum management
+*   **[Done] Models & Deep Type Safety**: Model-driven TS interfaces & type injection
+*   **[Done] Parallel Development (Mock)**: Automated Mock data generation from models
+*   **[Planned] 可视化图纸搭建工作台 (Low-Code GUI)**:
     *   启动 `fe-factory ui` 生成本地 Web 界面，支持通过拖拽组件、点选接口来生成 YAML Schema。
+*   **[Planned] Architectural Doctor**: `fe-factory doctor` for environment self-checks
 *   **[稳健] 全量 AST 突变覆盖**：
     *   将 Hook 注入、API 导出、Store 注册等所有文件修改逻辑全部切换为 AST 操作，确保 100% 的代码合并成功率。
 

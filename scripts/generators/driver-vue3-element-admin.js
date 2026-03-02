@@ -7,17 +7,19 @@ import { join } from 'path'
 import * as base from './base.js'
 
 export async function generatePage(params) {
-  const { page_id, title, layout, api_endpoints, camel, kebab } = params
+  const { page_id, title, layout, api_endpoints, camel, kebab, models = {} } = params
   const cwd = process.cwd()
   const config = base.getFactoryConfig(cwd)
 
   // 1. 生成渲染驱动特有的逻辑 (UI 层)
-  await generateViewFile({ cwd, config, page_id, title, layout, camel, kebab })
-  await generateHookFile({ cwd, config, page_id, title, api_endpoints, camel, kebab })
+  await generateViewFile({ cwd, config, page_id, title, layout, camel, kebab, models })
+  await generateHookFile({ cwd, config, page_id, title, api_endpoints, camel, kebab, models })
 
   // 2. 多端通用资产基建 (SUPERPOWERS)
-  base.generateApiFile({ cwd, config, page_id, api_endpoints, kebab })
-  base.generateStoreFile({ cwd, config, page_id, camel, kebab })
+  base.generateTypesFile({ cwd, config, page_id, kebab, models })
+  base.generateApiFile({ cwd, config, page_id, api_endpoints, kebab, models })
+  base.generateStoreFile({ cwd, config, page_id, camel, kebab, models })
+  base.generateMockFile({ cwd, page_id, kebab, models })
   base.generateTestFile({ cwd, config, page_id, title, api_endpoints, kebab, framework: 'element-plus' })
 
   // ── 新增: 原子组件与埋点同步 ──
@@ -31,10 +33,18 @@ export async function generatePage(params) {
 /**
  * 渲染 Element Plus 风格的 View 模板 (表格模式)
  */
-async function generateViewFile({ cwd, config, page_id, title, layout, camel, kebab }) {
+async function generateViewFile({ cwd, config, page_id, title, layout, camel, kebab, models }) {
   const dir = join(cwd, config.viewsDir, page_id)
   mkdirSync(join(dir, 'components'), { recursive: true })
   mkdirSync(join(dir, 'hooks'), { recursive: true })
+
+  const hasModels = models && Object.keys(models).length > 0
+  const firstModelName = hasModels ? Object.keys(models)[0] : null
+  const fields = firstModelName ? Object.keys(models[firstModelName]) : ['id', 'name', 'status']
+
+  const tableColumns = fields.map(f => {
+    return `<el-table-column prop="${f}" label="${f.toUpperCase()}" />`
+  }).join('\n          ')
 
   const content = `<template>
   <div class="${kebab}-container" data-page-id="${page_id}" v-loading="loading">
@@ -53,9 +63,7 @@ async function generateViewFile({ cwd, config, page_id, title, layout, camel, ke
        </div>
 
        <el-table :data="state.list" style="width: 100%" border stripe>
-          <el-table-column prop="id" label="ID" width="100" />
-          <el-table-column prop="name" label="业务名称" />
-          <el-table-column prop="status" label="状态" />
+          ${tableColumns}
           <el-table-column label="操作" width="180">
             <template #default="scope">
                <el-button link type="primary">预览</el-button>
@@ -91,10 +99,14 @@ const { loading, error, refresh, state } = use${page_id}()
   console.log(`  ✔ View: ${config.viewsDir}/${page_id}/index.vue (Element Admin)`)
 }
 
-async function generateHookFile({ cwd, config, page_id, title, api_endpoints, camel, kebab }) {
+async function generateHookFile({ cwd, config, page_id, title, api_endpoints, camel, kebab, models }) {
   const dir = join(cwd, config.viewsDir, page_id, 'hooks')
   const apiImportPath = `@/${config.apiDir.replace('src/', '')}/${kebab}`
   const primaryApi = api_endpoints[0] || null
+
+  const hasModels = models && Object.keys(models).length > 0
+  const firstModel = hasModels ? `I${Object.keys(models)[0]}` : 'any'
+  const typeImport = hasModels ? `import type { ${firstModel} } from '@/api/types/${kebab}'\n` : ''
 
   const content = `/**
  * use${page_id} — Composable [Element Plus Admin]
@@ -102,12 +114,14 @@ async function generateHookFile({ cwd, config, page_id, title, api_endpoints, ca
  */
 import { ref, onMounted, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
-${primaryApi ? `import { ${primaryApi} } from '${apiImportPath}'` : ''}
+${typeImport}${primaryApi ? `import { ${primaryApi} } from '${apiImportPath}'` : ''}
 
 export function use${page_id}() {
   const loading = ref(false)
   const error = ref<string | null>(null)
-  const state = reactive({ list: [] })
+  const state = reactive({ 
+    list: [] as ${firstModel}[]
+  })
 
   const fetchData = async () => {
     loading.value = true

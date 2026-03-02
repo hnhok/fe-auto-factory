@@ -94,6 +94,20 @@
       },
       "description": "页面需要采集的埋点事件 ID 列表"
     },
+    "models": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "description": "模型字段定义，Key 为字段名，Value 为类型或对象",
+        "additionalProperties": {
+          "type": [
+            "string",
+            "object"
+          ]
+        }
+      },
+      "description": "页面模型定义（用于生成 TS Interface 和 Mock 数据）"
+    },
     "version": {
       "type": "string",
       "description": "Schema 版本号",

@@ -1,0 +1,24 @@
+---
+page_id: OrderManagement
+title: 订单管理
+layout: admin
+api_endpoints:
+  - getOrderList
+  - updateOrderStatus
+components:
+  - ElTable
+  - ElTag
+  - OrderStatusTag
+models:
+  Order:
+    id: number
+    order_no: string
+    customer_name: string
+    total_amount: number
+    status: string
+    create_time: string
+track:
+  - order-list-view
+  - order-item-click
+version: "1.0"
+---
