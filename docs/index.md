@@ -15,13 +15,11 @@ hero:
 
 features:
   - title: 📝 Schema First 驱动
-    details: 单一事实来源 (Single Source of Truth)。由前后端协商好的 YAML 文件作为工程的一切输入，避免多人协调偏差。
-  - title: 🌐 Web API 自动推导
-    details: 与后端的 Swagger / OpenAPI 接口定义平台强力打通，自动转化 TS 类型定义与网络请求层代码。
-  - title: 🛡️ 强制规范检查
-    details: 引入 Ajv 等引擎的强制语法防线构建机制，所有自动生成的代码 100% 严禁出现手工级别的低级失误。
-  - title: 🚀 多端多模板适配
-    details: 自由定制你团队特有的 H5 C端展现模板、以及 PC 版 B端 Admin 复杂管理界面框架模板。
+    details: 单一事实来源 (Single Source of Truth)。由前后端协商好的 YAML 文件作为工程的一切输入，配合图像大模型一键生成业务骨架。
+  - title: 🚀 多端架构基座引擎
+    details: 彻底脱节死板的本地拷贝！云端字典内嵌 Vue3+Vant, Vue3+ElementPlus, React+Antd 等企业级架构核心仓，一秒克隆拔地而起。
+  - title: 🌐 自动推敲与接管 (Adapter Pattern)
+    details: 脚手架自带强力“血液识别”适配器。如果你的后台是 Element Plus，那生成的代码和 AI 出装就会聪明地替你挂载专属的 ElTable 体系！
 ---
 
 <div style="text-align: center; margin-top: 40px;">
