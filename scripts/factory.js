@@ -4,7 +4,7 @@
  * Usage: node scripts/factory.js <command> [options]
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, cpSync, rmSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync, cpSync, rmSync, readdirSync } from 'fs'
 import { resolve, dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 import { execSync, spawnSync } from 'child_process'
@@ -14,7 +14,7 @@ import { parseFrontmatter } from './utils/schema.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
-const FACTORY_VERSION = '2.5.0'
+const FACTORY_VERSION = '2.6.0'
 
 // ─── ANSI Color Helpers ───────────────────────────────────────────────────────
 const c = {
@@ -232,29 +232,40 @@ async function cmdGenerate(args) {
   log.info(`生成页面: ${page_id} (${title})`)
   log.gray(`布局: ${layout} | API: ${api_endpoints.join(', ') || '无'} | 组件: ${components.join(', ') || '无'} | 埋点: ${track.length} 项 | 模型: ${Object.keys(models).length} 个`)
 
-  // ─── 统一配置加载 ───────────────────────────────────────────
   const projectRoot = process.cwd()
+  const globalModels = loadGlobalModels(projectRoot)
+
+  // 1. 加载 Preset (优先从旧版目录加载，保持兼容)
   const legacyConfigPath = join(projectRoot, '.factory', 'config.json')
   const modernConfigPath = join(projectRoot, '.factoryrc.json')
 
   let factoryConfig = { preset: 'vue3-vant-h5' }
-
-  // 1. 加载 Preset (优先从旧版目录加载，保持兼容)
-  if (existsSync(legacyConfigPath)) {
-    try {
-      factoryConfig = { ...factoryConfig, ...JSON.parse(readFileSync(legacyConfigPath, 'utf-8')) }
-    } catch (e) { /* ignore */ }
-  }
-
-  // 2. 加载个性化路径配置 (覆盖)
-  if (existsSync(modernConfigPath)) {
-    try {
-      factoryConfig = { ...factoryConfig, ...JSON.parse(readFileSync(modernConfigPath, 'utf-8')) }
-    } catch (e) { /* ignore */ }
-  }
+  if (existsSync(legacyConfigPath)) { try { factoryConfig = { ...factoryConfig, ...JSON.parse(readFileSync(legacyConfigPath, 'utf-8')) } } catch (e) { } }
+  if (existsSync(modernConfigPath)) { try { factoryConfig = { ...factoryConfig, ...JSON.parse(readFileSync(modernConfigPath, 'utf-8')) } } catch (e) { } }
 
   const preset = factoryConfig.preset
   log.info(`工厂接管：预设 [${preset}] | 项目根目录: ${projectRoot}`)
+  if (Object.keys(globalModels).length > 0) log.gray(`加载全局模型池: 发现 ${Object.keys(globalModels).length} 个共享模型`)
+
+  // ─── 模型合并与 $ref 解析 ───
+  const finalModels = { ...globalModels, ...models }
+  Object.keys(finalModels).forEach(mName => {
+    const fields = finalModels[mName]
+    if (fields && typeof fields === 'object') {
+      Object.keys(fields).forEach(fName => {
+        const val = fields[fName]
+        if (typeof val === 'string' && val.startsWith('$ref:')) {
+          const refTarget = val.split(':')[1].trim()
+          // 如果引用的目标在模型池中，自动转换为对应的接口名
+          if (finalModels[refTarget]) {
+            finalModels[mName][fName] = `I${refTarget}`
+          } else {
+            finalModels[mName][fName] = 'any'
+          }
+        }
+      })
+    }
+  })
 
   // ─── 驱动沙箱加载 (优先级: 本地项目 > 工厂内置) ──────────────────────
   let generator = null
@@ -274,7 +285,7 @@ async function cmdGenerate(args) {
 
     // ─── 执行生成 ───────────────────────────────────────────
     await generator.generatePage({
-      page_id, title, layout, api_endpoints, components, track, models, camel, kebab,
+      page_id, title, layout, api_endpoints, components, track, models: finalModels, camel, kebab,
       config: factoryConfig // 将合并后的配置注入驱动
     })
   } catch (err) {
@@ -454,6 +465,69 @@ async function cmdSync(args) {
   await syncModule.syncSwagger(swaggerUrl)
 }
 
+/**
+ * [FACTORY-DOCTOR] 环境健康检查与自愈
+ */
+async function cmdDoctor() {
+  printBanner()
+  log.step('开始诊断前端自动化工厂环境...')
+
+  const cwd = process.cwd()
+  const checks = [
+    { name: 'Node.js 版本', check: () => process.version.startsWith('v20') || process.version.startsWith('v22'), fix: '请升级 Node.js 至 v20+' },
+    { name: '依赖: ts-morph', check: () => existsSync(join(cwd, 'node_modules', 'ts-morph')) },
+    { name: '依赖: ajv', check: () => existsSync(join(cwd, 'node_modules', 'ajv')) },
+    { name: '依赖: js-yaml', check: () => existsSync(join(cwd, 'node_modules', 'js-yaml')) },
+    { name: '配置文件: .factoryrc.json 或 .factory/config.json', check: () => existsSync(join(cwd, '.factoryrc.json')) || existsSync(join(cwd, '.factory/config.json')) },
+    {
+      name: '路径别名: tsconfig.json (@/*)', check: () => {
+        if (!existsSync(join(cwd, 'tsconfig.json'))) return false
+        const tsconfig = readFileSync(join(cwd, 'tsconfig.json'), 'utf-8')
+        return tsconfig.includes('"@/*"')
+      }
+    }
+  ]
+
+  let hasError = false
+  for (const item of checks) {
+    const ok = item.check()
+    if (ok) {
+      console.log(`  ${c.green}✔${c.reset} ${item.name} 正常`)
+    } else {
+      console.log(`  ${c.red}✘${c.reset} ${item.name} 异常! ${item.fix || '(提示: 请检查 npm install 或配置文件)'}`)
+      hasError = true
+    }
+  }
+
+  if (!hasError) {
+    log.success('诊断完成：工厂环境非常健康！')
+  } else {
+    log.warn('诊断发现部分潜在风险，请根据提示进行修复。')
+  }
+}
+
+/**
+ * 加载全局公用模型池 (.factory/models/*.yaml)
+ */
+function loadGlobalModels(cwd) {
+  const modelDir = join(cwd, '.factory', 'models')
+  if (!existsSync(modelDir)) return {}
+
+  try {
+    const files = readdirSync(modelDir).filter(f => f.endsWith('.yaml') || f.endsWith('.yml'))
+    let globalModels = {}
+
+    files.forEach(file => {
+      const content = readFileSync(join(modelDir, file), 'utf-8')
+      const data = parseFrontmatter(content)
+      globalModels = { ...globalModels, ...data }
+    })
+    return globalModels
+  } catch (e) {
+    return {}
+  }
+}
+
 // ─── Command: update ────────────────────────────────────────────────────────────
 async function cmdUpdate() {
   printBanner()
@@ -504,6 +578,7 @@ switch (command) {
   case 'test': await cmdTest(rest); break
   case 'report': await cmdReport(rest); break
   case 'sync': await cmdSync(rest); break
+  case 'doctor': await cmdDoctor(); break
   case 'update': await cmdUpdate(); break
   case '--version':
   case '-v':
@@ -522,6 +597,7 @@ switch (command) {
             { name: '🌟 生成新页面', value: 'generate' },
             { name: '📸 从设计稿直接生成 (AI 视觉)', value: 'vision' },
             { name: '📦 初始化新项目', value: 'init' },
+            { name: '🩺 运行环境诊断与自愈', value: 'doctor' },
             { name: '🌐 同步 Swagger 接口', value: 'sync' },
             { name: '✅ 运行质量检查', value: 'validate' },
             { name: '🔄 从远端同步基建升级 (Update)', value: 'update' },
@@ -568,6 +644,8 @@ switch (command) {
         console.log(`  2. 输入指令：${c.cyan}/img2code${c.reset}`);
         console.log(`\nAI 助手将接管后续所有的图像分析、Schema 生成以及代码构建工作。\n`);
         process.exit(0);
+      } else if (action === 'doctor') {
+        await cmdDoctor();
       } else if (action === 'init') {
         const { projectName } = await inquirer.prompt([
           { type: 'input', name: 'projectName', message: '请输入新项目的名称:' }
@@ -587,6 +665,7 @@ switch (command) {
       console.log(`${c.bold}可用命令:${c.reset}`)
       console.log(`  ${c.cyan}init${c.reset} <project-name>           初始化新项目`)
       console.log(`  ${c.cyan}generate${c.reset} --schema <file>       从 Schema 生成代码`)
+      console.log(`  ${c.cyan}doctor${c.reset}                         运行环境诊断与自愈`)
       console.log(`  ${c.cyan}validate${c.reset}                       运行全量质量检查`)
       console.log(`  ${c.cyan}test${c.reset} [--e2e|--unit|--all]     运行自动化测试`)
       console.log(`  ${c.cyan}report${c.reset} [--week]                生成 AI 分析周报`)

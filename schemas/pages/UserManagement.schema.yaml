@@ -1,0 +1,15 @@
+---
+page_id: UserManagement
+title: 用户管理
+layout: admin
+api_endpoints:
+  - getUserList
+models:
+  AdminUser:
+    id: number
+    base_info: "$ref: BaseUser"
+    permissions: "string[]"
+track:
+  - user-view
+version: "1.0"
+---
