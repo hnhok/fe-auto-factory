@@ -19,6 +19,7 @@ export default defineConfig({
                         { text: '快速上手', link: '/guide/getting-started' },
                         { text: '开发实战指南', link: '/guide/core-usage' },
                         { text: '迭代更新日志 (Changelog)', link: '/guide/changelog' },
+                        { text: '项目总结与规划 (Roadmap)', link: '/guide/roadmap' },
                         { text: 'Schema 配置', link: '/guide/schema' },
                         { text: '高级布局 (Layout)', link: '/guide/layout' }
                     ]
