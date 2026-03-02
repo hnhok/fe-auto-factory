@@ -4,14 +4,14 @@
  * Usage: node scripts/factory.js <command> [options]
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, cpSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync, cpSync, rmSync } from 'fs'
 import { resolve, dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 import { execSync, spawnSync } from 'child_process'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
-const FACTORY_VERSION = '2.2.0'
+const FACTORY_VERSION = '2.2.1'
 
 // ─── ANSI Color Helpers ───────────────────────────────────────────────────────
 const c = {
@@ -83,23 +83,43 @@ async function cmdInit(initialProjectName) {
     process.exit(1)
   }
 
-  // Fallback to basic template if standard doesn't exist yet but vue3-vant-h5 does (for hacky local dev)
-  let actualTemplateSrc = templateSrc
-  if (!existsSync(actualTemplateSrc) && preset !== 'vue3-vant-h5') {
-    log.warn(`⚠️ 本地尚不存在 "${preset}" 模板库，作为演示将回退使用 "vue3-vant-h5" 拷贝...`);
-    actualTemplateSrc = resolve(ROOT, '..', 'vue3-vant-h5')
+  const TEMPLATE_REPOS = {
+    'vue3-vant-h5': 'https://github.com/hnhok/vue3-vant-h5.git',
+    'vue3-element-admin': 'https://github.com/hnhok/vue3-element-admin.git',
+    'react-antd-admin': 'https://github.com/hnhok/react-antd-admin.git'
   }
 
-  log.info('拷贝项目模板...')
-  // Windows 兼容的拷贝方式
-  const result = spawnSync(
-    'xcopy',
-    [actualTemplateSrc, dest, '/E', '/I', '/Q', '/EXCLUDE:' + resolve(ROOT, 'scripts', 'xcopy-excludes.txt')],
-    { stdio: 'inherit', shell: true }
-  )
-  if (result.status !== 0) {
-    // fallback: 用 robocopy
-    spawnSync('robocopy', [actualTemplateSrc, dest, '/E', '/XD', 'node_modules', 'dist', '.git'], { stdio: 'inherit', shell: true })
+  const repoUrl = TEMPLATE_REPOS[preset]
+
+  log.info(`🌐 试图从云端拉取企业标准模板 [${preset}]...`)
+  const cloneResult = spawnSync('git', ['clone', '--depth', '1', repoUrl, dest], { stdio: 'inherit', shell: true })
+
+  if (cloneResult.status === 0) {
+    log.success('云端模板拉取成功！')
+    try {
+      rmSync(join(dest, '.git'), { recursive: true, force: true })
+    } catch (e) {
+      log.warn('清理 .git 失败: ' + e.message)
+    }
+  } else {
+    log.warn(`⚠️ 云端仓库提取失败 (可能未公开网络或权限不足)，退回本地级联拷贝...`)
+
+    // Fallback to basic local template
+    let actualTemplateSrc = templateSrc
+    if (!existsSync(actualTemplateSrc) && preset !== 'vue3-vant-h5') {
+      log.warn(`⚠️ 本地尚不存在 "${preset}" 模板库，作为演示将回退使用 "vue3-vant-h5" 拷贝...`);
+      actualTemplateSrc = resolve(ROOT, '..', 'vue3-vant-h5')
+    }
+
+    log.info('本地拷贝项目模板...')
+    const result = spawnSync(
+      'xcopy',
+      [actualTemplateSrc, dest, '/E', '/I', '/Q', '/EXCLUDE:' + resolve(ROOT, 'scripts', 'xcopy-excludes.txt')],
+      { stdio: 'inherit', shell: true }
+    )
+    if (result.status !== 0) {
+      spawnSync('robocopy', [actualTemplateSrc, dest, '/E', '/XD', 'node_modules', 'dist', '.git'], { stdio: 'inherit', shell: true })
+    }
   }
 
   // 写入项目配置
