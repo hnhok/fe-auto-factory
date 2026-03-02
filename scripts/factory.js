@@ -14,7 +14,7 @@ import { parseFrontmatter } from './utils/schema.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
-const FACTORY_VERSION = '2.8.0'
+const FACTORY_VERSION = '2.9.0'
 
 // ─── ANSI Color Helpers ───────────────────────────────────────────────────────
 const c = {

@@ -21,14 +21,14 @@
     *   实现了本地驱动优先加载机制。开发者可以在项目 `.factory/drivers/` 下定义私有驱动，实现对中央工厂引擎的无损扩展。
 *   **[Done] Atomic Scaffolding & Tracking Sync**: v2.4+ Component skeleton & enum management
 *   **[Done] Models & Deep Type Safety**: Model-driven TS interfaces & type injection
-*   **[Done] Parallel Development (Mock)**: Automated Mock data generation from models
+*   **[Done] 智能化 Mock 引擎 (Smart Mocking)**: 根据字段级语义 (email/avatar) 自动生成真实度极高的 Mock.js 规则。
 *   **[Done] Architectural Doctor**: `fe-factory doctor` for environment self-checks
 *   **[Done] Feature-Aware Scaffolding**: Standardized patterns for pagination, refresh, and search
 *   **[Done] Global Model Pool ($ref)**: Centralized domain modeling and cross-page reuse
+*   **[Done] 增量更新与安全插槽 (Smart Patching)**:
+    *   通过工厂标记注释 `<!-- [FACTORY-CUSTOM-START] -->` 实现在二次/多次生成时自动保护和提取开发者的手写业务代码，达成 100% 安全合并。
 *   **[Planned] 可视化图纸搭建工作台 (Low-Code GUI)**:
     *   启动 `fe-factory ui` 生成本地 Web 界面，支持通过拖拽组件、点选接口来生成 YAML Schema。
-*   **[稳健] 全量 AST 突变覆盖**：
-    *   将 Hook 注入、API 导出、Store 注册等所有文件修改逻辑全部切换为 AST 操作，确保 100% 的代码合并成功率。
 
 ---
 

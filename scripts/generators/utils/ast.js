@@ -144,3 +144,15 @@ export function ensureImport(filePath, moduleSpecifier, namedImports = []) {
     }
     sourceFile.saveSync()
 }
+/**
+ * [v2.9.0] 提取文件中的特定区段 (基于标记注释)
+ * 用于支持生成的 Vue 文件中保留用户自定义代码
+ */
+export function extractSection(content, startTag, endTag) {
+    const startIdx = content.indexOf(startTag)
+    const endIdx = content.indexOf(endTag)
+    if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+        return content.substring(startIdx + startTag.length, endIdx).trim()
+    }
+    return null
+}

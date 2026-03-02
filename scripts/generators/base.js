@@ -5,11 +5,16 @@
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import { toKebabCase } from '../utils/string.js'
-import { updateRouterSafely as _updateRouterSafely } from './utils/ast.js'
-import { injectComponentTracking as _injectComponentTracking, syncTrackingAssets as _syncTrackingAssets } from './utils/ast.js'
+import {
+  updateRouterSafely as _updateRouterSafely,
+  injectComponentTracking as _injectComponentTracking,
+  syncTrackingAssets as _syncTrackingAssets,
+  extractSection as _extractSection
+} from './utils/ast.js'
 
 export const updateRouterSafely = _updateRouterSafely
 export const syncTrackingAssets = _syncTrackingAssets
+export const extractSection = _extractSection
 
 /**
  * 加载工厂配置

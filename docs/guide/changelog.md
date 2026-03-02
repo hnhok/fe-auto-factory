@@ -2,6 +2,14 @@
 
 这里记录着每一次核心基建工厂 `fe-auto-factory` 发布的功能节点，你可以在你的下游业务控制台中利用 `npx fe-factory update` 来同步最新的基建能力！
 
+## [v2.9.0] - 2026-03-02
+- ✨ 新增: **增量更新与安全插槽 (Smart Patching)**。通过标记注释 `<!-- [FACTORY-CUSTOM-START] -->` 与 `// [FACTORY-SCRIPT-START]` 实现对开发者自定义代码块的保留。再次生成页面时不再暴戾覆盖已有逻辑！
+- 🔧 优化: `ast.js` 扩展 `extractSection` 提取引擎，为多种文件、多种语言的语法提供通用插槽提取方案。
+
+## [v2.8.0] - 2026-03-02
+- ✨ 新增: **智能化 Mock 引擎 (Smart Mocking)**。不再只是机械地填入 `@ctitle`，生成器能够根据字段名（如 `avatar`、`email`、`phone`、`price` 等）嗅探出其业务语义，并生成带真实质感的模拟数据结构，极大地提高了 UI 还原真实度。
+- 🔧 修复: Mock 文件生成时由于引号闭合导致的类型验证异常，确保生成 TypeScript 的第一性安全。
+
 ## [v2.7.0] - 2026-03-02
 - ✨ 新增: **功能感知渲染 (Feature-Aware Scaffolding)**。Schema 支持 `features` 字段，一键开启 `pagination` (分页/无限滚动)、`pull_to_refresh` (下拉刷新)、`search_bar` (搜索栏) 等标准业务模式。
 - ✨ 新增: **状态驱动建模 (State Integration)**。Schema 支持 `state` 字段定义页面级响应式变量，自动同步至 Pinia Store 和 Vue Hook。

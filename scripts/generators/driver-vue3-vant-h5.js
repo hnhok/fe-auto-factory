@@ -1,7 +1,7 @@
 /**
  * FE-Auto-Factory 代码生成渲染器 [Vant H5 适配器]
  */
-import { writeFileSync, mkdirSync } from 'fs'
+import { writeFileSync, readFileSync, mkdirSync, existsSync } from 'fs'
 import { join } from 'path'
 import * as base from './base.js'
 
@@ -28,12 +28,23 @@ export async function generatePage(params) {
 }
 
 /**
- * 渲染 Vant 风格的 View 模板
+ * 渲染 Vant 风格的 View 模板 (支持增量合并)
  */
 async function generateViewFile({ cwd, config, page_id, title, layout, camel, kebab, models, features }) {
   const dir = join(cwd, config.viewsDir, page_id)
   mkdirSync(join(dir, 'components'), { recursive: true })
   mkdirSync(join(dir, 'hooks'), { recursive: true })
+
+  const filePath = join(dir, 'index.vue')
+  let existingContent = ''
+  let customUI = ''
+  let customScript = ''
+
+  if (existsSync(filePath)) {
+    existingContent = readFileSync(filePath, 'utf-8')
+    customUI = base.extractSection(existingContent, '<!-- [FACTORY-CUSTOM-START] -->', '<!-- [FACTORY-CUSTOM-END] -->') || ''
+    customScript = base.extractSection(existingContent, '// [FACTORY-SCRIPT-START]', '// [FACTORY-SCRIPT-END]') || ''
+  }
 
   const hasModels = models && Object.keys(models).length > 0
   const firstModelName = hasModels ? Object.keys(models)[0] : null
@@ -71,6 +82,10 @@ async function generateViewFile({ cwd, config, page_id, title, layout, camel, ke
     
     <div class="content">
       ${innerContent}
+
+      <!-- [FACTORY-CUSTOM-START] -->
+      ${customUI || '<!-- 这里可以编写您的自定义业务 UI (保留区) -->'}
+      <!-- [FACTORY-CUSTOM-END] -->
     </div>
   </div>
 </template>
@@ -83,6 +98,10 @@ import { use${page_id} } from './hooks/use${page_id}'
 const router = useRouter()
 const refreshing = ref(false)
 const { loading, error, state, refresh, loadMore } = use${page_id}()
+
+// [FACTORY-SCRIPT-START]
+${customScript || '// 在此处编写您的自定义业务逻辑 (保留区)'}
+// [FACTORY-SCRIPT-END]
 
 const onRefresh = async () => {
   await refresh()
@@ -105,12 +124,20 @@ const onLoad = () => {
 }
 </style>
 `
-  writeFileSync(join(dir, 'index.vue'), content, 'utf-8')
-  console.log(`  ✔ View: ${config.viewsDir}/${page_id}/index.vue (Vant H5)`)
+  writeFileSync(filePath, content, 'utf-8')
+  console.log(`  ✔ View: ${config.viewsDir}/${page_id}/index.vue (Vant H5) [增量模式]`)
 }
 
 async function generateHookFile({ cwd, config, page_id, title, api_endpoints, camel, kebab, models, features, state = [] }) {
   const dir = join(cwd, config.viewsDir, page_id, 'hooks')
+  const filePath = join(dir, `use${page_id}.ts`)
+
+  let customHookLogic = ''
+  if (existsSync(filePath)) {
+    const existingContent = readFileSync(filePath, 'utf-8')
+    customHookLogic = base.extractSection(existingContent, '// [FACTORY-HOOK-CUSTOM-START]', '// [FACTORY-HOOK-CUSTOM-END]') || ''
+  }
+
   const apiImportPath = `@/${config.apiDir.replace('src/', '')}/${kebab}`
   const primaryApi = api_endpoints[0] || null
 
@@ -130,7 +157,7 @@ async function generateHookFile({ cwd, config, page_id, title, api_endpoints, ca
 
   const content = `/**
  * use${page_id} — Composable [Vant H5]
- * [FACTORY-GENERATED] 支持 Features & State
+ * [FACTORY-GENERATED] 支持 Features & State & 增量保护
  */
 import { ref, reactive, onMounted } from 'vue'
 import { showToast } from 'vant'
@@ -142,6 +169,10 @@ export function use${page_id}() {
   const state = reactive({ 
 ${stateProps.join(',\n')}
   })
+
+  // [FACTORY-HOOK-CUSTOM-START]
+  ${customHookLogic || '// 在此处编写您的自定义 Hook 逻辑 (保留区)\n  const myCustomFunc = () => {}'}
+  // [FACTORY-HOOK-CUSTOM-END]
 
   const refresh = async () => {
     state.page = 1
@@ -175,6 +206,6 @@ ${stateProps.join(',\n')}
   return { loading, error, state, refresh, loadMore }
 }
 `
-  writeFileSync(join(dir, `use${page_id}.ts`), content, 'utf-8')
-  console.log(`  ✔ Hook: ${config.viewsDir}/${page_id}/hooks/use${page_id}.ts`)
+  writeFileSync(filePath, content, 'utf-8')
+  console.log(`  ✔ Hook: ${config.viewsDir}/${page_id}/hooks/use${page_id}.ts [增量模式]`)
 }
