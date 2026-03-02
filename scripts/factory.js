@@ -407,6 +407,7 @@ switch (command) {
           message: '请选择你要执行的操作:',
           choices: [
             { name: '🌟 生成新页面', value: 'generate' },
+            { name: '📸 从设计稿直接生成 (AI 视觉)', value: 'vision' },
             { name: '📦 初始化新项目', value: 'init' },
             { name: '🌐 同步 Swagger 接口', value: 'sync' },
             { name: '✅ 运行质量检查', value: 'validate' },
@@ -440,6 +441,14 @@ switch (command) {
           }
         ]);
         await cmdGenerate(['--schema', path.join('schemas/pages', file)]);
+      } else if (action === 'vision') {
+        printBanner();
+        console.log(`${c.green}${c.bold}✨ 已检测到本地 IDE/AI 助手环境！${c.reset}`);
+        console.log(`\n只需两步即可完成【设计稿大模型直出代码】闭环：\n`);
+        console.log(`  1. 请在您的 IDE（Cursor/Antigravity 等）侧边栏 AI 对话框中，直接上传您的产品图片/设计稿`);
+        console.log(`  2. 输入指令：${c.cyan}/img2code${c.reset}`);
+        console.log(`\nAI 助手将接管后续所有的图像分析、Schema 生成以及代码构建工作。\n`);
+        process.exit(0);
       } else if (action === 'init') {
         const { projectName } = await inquirer.prompt([
           { type: 'input', name: 'projectName', message: '请输入新项目的名称:' }
