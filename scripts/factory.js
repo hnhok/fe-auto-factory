@@ -4,14 +4,14 @@
  * Usage: node scripts/factory.js <command> [options]
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync, cpSync } from 'fs'
 import { resolve, dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 import { execSync, spawnSync } from 'child_process'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
-const FACTORY_VERSION = '2.0.1'
+const FACTORY_VERSION = '2.0.2'
 
 // ─── ANSI Color Helpers ───────────────────────────────────────────────────────
 const c = {
@@ -97,6 +97,14 @@ async function cmdInit(projectName) {
   mkdirSync(join(dest, 'docs', 'requirements'), { recursive: true })
   mkdirSync(join(dest, 'tests', 'e2e'), { recursive: true })
   mkdirSync(join(dest, 'tests', 'unit'), { recursive: true })
+
+  // 拷贝 IDE AI Action 配置文件 (使得应用侧也能直接执行 /img2code 等高级操作)
+  const sourceAgentDir = join(ROOT, '.agent')
+  if (existsSync(sourceAgentDir)) {
+    log.info('写入 AI 自动化流配置...')
+    // 简单实现 Node 本身的递归拷贝
+    cpSync(sourceAgentDir, join(dest, '.agent'), { recursive: true })
+  }
 
   log.success(`项目 "${projectName}" 初始化成功！`)
   console.log('')
