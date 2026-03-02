@@ -11,7 +11,7 @@ import { execSync, spawnSync } from 'child_process'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
-const FACTORY_VERSION = '2.1.0'
+const FACTORY_VERSION = '2.1.1'
 
 // ─── ANSI Color Helpers ───────────────────────────────────────────────────────
 const c = {
@@ -105,6 +105,10 @@ async function cmdInit(projectName) {
     // 简单实现 Node 本身的递归拷贝
     cpSync(sourceAgentDir, join(dest, '.agent'), { recursive: true })
   }
+
+  // 初始化写入项目的跟进日志 (Changelog)
+  const initChangelog = `# 项目变更与更新日志 (Changelog)\n\n## [Init] - ${new Date().toLocaleString()}\n- 🚀 初始化项目基于 FE-Auto-Factory v${FACTORY_VERSION}\n`
+  writeFileSync(join(dest, 'docs', 'CHANGELOG.md'), initChangelog, 'utf-8')
 
   log.success(`项目 "${projectName}" 初始化成功！`)
   console.log('')
@@ -407,6 +411,23 @@ async function cmdUpdate() {
   if (existsSync(sourceSchemaDir)) {
     log.info('🔄 同步 Schema 严控规则库...')
     cpSync(sourceSchemaDir, join(process.cwd(), 'schemas'), { recursive: true })
+  }
+
+  // 3. 记录升级日志 (Changelog)
+  const changelogPath = join(process.cwd(), 'docs', 'CHANGELOG.md')
+  const updateLog = `\n## [Update] - ${new Date().toLocaleString()}\n- 🔄 [工具自动同步] - 已将基建架构升级联通至 FE-Auto-Factory v${FACTORY_VERSION}\n- 包含了最新的 .agent 工作流指令以及 \`schemas\` 基础规范校验定义\n`
+  try {
+    if (existsSync(changelogPath)) {
+      const existingLog = readFileSync(changelogPath, 'utf-8')
+      writeFileSync(changelogPath, existingLog + updateLog, 'utf-8')
+    } else {
+      if (!existsSync(join(process.cwd(), 'docs'))) {
+        mkdirSync(join(process.cwd(), 'docs'), { recursive: true })
+      }
+      writeFileSync(changelogPath, `# 项目变更与更新日志 (Changelog)\n` + updateLog, 'utf-8')
+    }
+  } catch (e) {
+    log.warn('无法自动更新基建升级日志到 docs/CHANGELOG.md')
   }
 
   log.success(`基建同步完成！请确保已通过 npm install @hnhok/fe-auto-factory@latest 拉下了最新版本的依赖`)

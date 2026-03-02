@@ -17,6 +17,7 @@ export default defineConfig({
                     text: '入门指南',
                     items: [
                         { text: '快速上手', link: '/guide/getting-started' },
+                        { text: '迭代更新日志 (Changelog)', link: '/guide/changelog' },
                         { text: 'Schema 配置', link: '/guide/schema' },
                         { text: '高级布局 (Layout)', link: '/guide/layout' }
                     ]
