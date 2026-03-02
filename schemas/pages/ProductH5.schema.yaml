@@ -1,0 +1,16 @@
+---
+page_id: ProductH5
+title: 移动商品列表
+layout: tabbar
+features:
+  pagination: true
+  pull_to_refresh: true
+models:
+  Product:
+    id: number
+    name: string
+    price: number
+api_endpoints:
+  - getProductList
+version: "1.1"
+---

@@ -94,6 +94,24 @@
       },
       "description": "页面需要采集的埋点事件 ID 列表"
     },
+    "features": {
+      "type": "object",
+      "properties": {
+        "pagination": {
+          "type": "boolean",
+          "default": false
+        },
+        "pull_to_refresh": {
+          "type": "boolean",
+          "default": false
+        },
+        "search_bar": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "description": "页面增强特性开关"
+    },
     "models": {
       "type": "object",
       "additionalProperties": {

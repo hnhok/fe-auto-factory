@@ -1,39 +1,36 @@
 /**
  * FE-Auto-Factory 代码生成渲染器 [Element Plus Admin 适配器]
- * 主要负责 UI 层级 (View/Hook) 的拼装，通用逻辑交由 base.js 处理
  */
-import { writeFileSync, mkdirSync } from 'fs'
+import { writeFileSync, mkdirSync, existsSync } from 'fs'
 import { join } from 'path'
 import * as base from './base.js'
 
 export async function generatePage(params) {
-  const { page_id, title, layout, api_endpoints, camel, kebab, models = {} } = params
+  const { page_id, title, layout, api_endpoints, camel, kebab, models = {}, features = {}, state = [] } = params
   const cwd = process.cwd()
   const config = base.getFactoryConfig(cwd)
 
   // 1. 生成渲染驱动特有的逻辑 (UI 层)
-  await generateViewFile({ cwd, config, page_id, title, layout, camel, kebab, models })
-  await generateHookFile({ cwd, config, page_id, title, api_endpoints, camel, kebab, models })
+  await generateViewFile({ cwd, config, page_id, title, layout, camel, kebab, models, features })
+  await generateHookFile({ cwd, config, page_id, title, api_endpoints, camel, kebab, models, features, state })
 
-  // 2. 多端通用资产基建 (SUPERPOWERS)
+  // 2. 多端通用资产基建
   base.generateTypesFile({ cwd, config, page_id, kebab, models })
   base.generateApiFile({ cwd, config, page_id, api_endpoints, kebab, models })
-  base.generateStoreFile({ cwd, config, page_id, camel, kebab, models })
+  base.generateStoreFile({ cwd, config, page_id, camel, kebab, models, features, state })
   base.generateMockFile({ cwd, page_id, kebab, models })
   base.generateTestFile({ cwd, config, page_id, title, api_endpoints, kebab, framework: 'element-plus' })
 
-  // ── 新增: 原子组件与埋点同步 ──
   base.generateComponentScaffolds({ cwd, config, page_id, components: params.components || [] })
   base.syncTrackingAssets({ cwd, track: params.track || [] })
 
-  // 3. AST 级路由安全注入
   await base.updateRouterSafely({ cwd, page_id, kebab, meta: { title } })
 }
 
 /**
- * 渲染 Element Plus 风格的 View 模板 (表格模式)
+ * 渲染 Element Plus 风格的 View 模板
  */
-async function generateViewFile({ cwd, config, page_id, title, layout, camel, kebab, models }) {
+async function generateViewFile({ cwd, config, page_id, title, layout, camel, kebab, models, features }) {
   const dir = join(cwd, config.viewsDir, page_id)
   mkdirSync(join(dir, 'components'), { recursive: true })
   mkdirSync(join(dir, 'hooks'), { recursive: true })
@@ -42,9 +39,24 @@ async function generateViewFile({ cwd, config, page_id, title, layout, camel, ke
   const firstModelName = hasModels ? Object.keys(models)[0] : null
   const fields = firstModelName ? Object.keys(models[firstModelName]) : ['id', 'name', 'status']
 
-  const tableColumns = fields.map(f => {
-    return `<el-table-column prop="${f}" label="${f.toUpperCase()}" />`
-  }).join('\n          ')
+  const tableColumns = fields.map(f => `<el-table-column prop="${f}" label="${f.toUpperCase()}" />`).join('\n          ')
+
+  const searchBar = features.search_bar ? `
+       <div class="mb-4 flex gap-4">
+          <el-input v-model="queryParams.keyword" placeholder="关键词搜索" style="width: 200px" />
+          <el-button type="primary" @click="refresh">查询</el-button>
+       </div>` : ''
+
+  const pagination = features.pagination ? `
+       <div class="mt-4 flex justify-end">
+          <el-pagination 
+            background 
+            layout="total, prev, pager, next" 
+            :total="state.total" 
+            v-model:current-page="state.page"
+            @current-change="refresh"
+          />
+       </div>` : ''
 
   const content = `<template>
   <div class="${kebab}-container" data-page-id="${page_id}" v-loading="loading">
@@ -62,6 +74,8 @@ async function generateViewFile({ cwd, config, page_id, title, layout, camel, ke
           <el-button type="primary">新增数据</el-button>
        </div>
 
+       ${searchBar}
+
        <el-table :data="state.list" style="width: 100%" border stripe>
           ${tableColumns}
           <el-table-column label="操作" width="180">
@@ -72,18 +86,18 @@ async function generateViewFile({ cwd, config, page_id, title, layout, camel, ke
           </el-table-column>
        </el-table>
 
-       <div class="mt-4 flex justify-end">
-          <el-pagination background layout="prev, pager, next" :total="100" />
-       </div>
+       ${pagination}
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
+import { reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { use${page_id} } from './hooks/use${page_id}'
 
 const router = useRouter()
+const queryParams = reactive({ keyword: '' })
 const { loading, error, refresh, state } = use${page_id}()
 </script>
 
@@ -91,6 +105,7 @@ const { loading, error, refresh, state } = use${page_id}()
 .mb-4 { margin-bottom: 1rem; }
 .mt-4 { margin-top: 1rem; }
 .flex { display: flex; }
+.gap-4 { gap: 1rem; }
 .justify-between { justify-content: space-between; }
 .justify-end { justify-content: flex-end; }
 </style>
@@ -99,7 +114,7 @@ const { loading, error, refresh, state } = use${page_id}()
   console.log(`  ✔ View: ${config.viewsDir}/${page_id}/index.vue (Element Admin)`)
 }
 
-async function generateHookFile({ cwd, config, page_id, title, api_endpoints, camel, kebab, models }) {
+async function generateHookFile({ cwd, config, page_id, title, api_endpoints, camel, kebab, models, features, state = [] }) {
   const dir = join(cwd, config.viewsDir, page_id, 'hooks')
   const apiImportPath = `@/${config.apiDir.replace('src/', '')}/${kebab}`
   const primaryApi = api_endpoints[0] || null
@@ -108,9 +123,19 @@ async function generateHookFile({ cwd, config, page_id, title, api_endpoints, ca
   const firstModel = hasModels ? `I${Object.keys(models)[0]}` : 'any'
   const typeImport = hasModels ? `import type { ${firstModel} } from '@/api/types/${kebab}'\n` : ''
 
+  let stateProps = [`    list: [] as ${firstModel}[]`]
+  if (features.pagination) {
+    stateProps.push(`    total: 0`)
+    stateProps.push(`    page: 1`)
+  }
+  state.forEach(s => {
+    const [name, type] = s.split(':').map(i => i.trim())
+    stateProps.push(`    ${name}: undefined as ${type || 'any'}`)
+  })
+
   const content = `/**
  * use${page_id} — Composable [Element Plus Admin]
- * [FACTORY-GENERATED]
+ * [FACTORY-GENERATED] 支持 Features & State
  */
 import { ref, onMounted, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
@@ -120,13 +145,13 @@ export function use${page_id}() {
   const loading = ref(false)
   const error = ref<string | null>(null)
   const state = reactive({ 
-    list: [] as ${firstModel}[]
+${stateProps.join(',\n')}
   })
 
   const fetchData = async () => {
     loading.value = true
     try {
-      ${primaryApi ? `const res = await ${primaryApi}({ page: 1, size: 10 }) as any\n      state.list = res?.data ?? res` : '// NO-API'}
+      ${primaryApi ? `const res = await ${primaryApi}({ page: state.page, size: 10 }) as any\n      state.list = res?.data ?? res\n      if(res?.total) state.total = res.total` : '// NO-API'}
     } catch (e: any) {
       error.value = e.message
       ElMessage.error(e.message)

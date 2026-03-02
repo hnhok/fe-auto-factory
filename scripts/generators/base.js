@@ -1,37 +1,40 @@
 /**
- * FE-Auto-Factory 基础生成器核心
- * 包含所有框架通用的 CRUD、API、Store 等低级别代码生成逻辑
+ * FE-Auto-Factory 驱动基石
+ * 包含多端通用的文件生成逻辑、配置加载及代码注入原子操作
  */
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs'
-import { join, dirname } from 'path'
-import { injectRoute, ensureNamedExport, ensureEnumMember, ensureImport } from './utils/ast.js'
+import { join } from 'path'
+import { toKebabCase } from '../utils/string.js'
+import { updateRouterSafely as _updateRouterSafely } from './utils/ast.js'
+import { injectComponentTracking as _injectComponentTracking, syncTrackingAssets as _syncTrackingAssets } from './utils/ast.js'
+
+export const updateRouterSafely = _updateRouterSafely
+export const syncTrackingAssets = _syncTrackingAssets
 
 /**
- * 通用配置读取 (支持多版本配置文件合并)
+ * 加载工厂配置
  */
 export function getFactoryConfig(cwd) {
-    const legacyPath = join(cwd, '.factory', 'config.json')
-    const modernPath = join(cwd, '.factoryrc.json')
-
-    let config = {
-        viewsDir: 'src/views',
+    const configPath = join(cwd, '.factoryrc.json')
+    const defaultConfig = {
         apiDir: 'src/api',
         storeDir: 'src/store',
+        viewsDir: 'src/views',
         testDir: 'tests/e2e',
-        preset: 'vue3-vant-h5'
+        trackFiles: ['src/constants/tracking.ts']
     }
-
-    if (existsSync(legacyPath)) {
-        try { config = { ...config, ...JSON.parse(readFileSync(legacyPath, 'utf-8')) } } catch (e) { }
+    if (existsSync(configPath)) {
+        try {
+            return { ...defaultConfig, ...JSON.parse(readFileSync(configPath, 'utf-8')) }
+        } catch (e) {
+            return defaultConfig
+        }
     }
-    if (existsSync(modernPath)) {
-        try { config = { ...config, ...JSON.parse(readFileSync(modernPath, 'utf-8')) } } catch (e) { }
-    }
-    return config
+    return defaultConfig
 }
 
 /**
- * 生成 TS 类型定义文件 (Deep Type Safety)
+ * 生成 TypeScript 类型定义文件
  */
 export function generateTypesFile({ cwd, config, page_id, kebab, models }) {
     if (!models || Object.keys(models).length === 0) return
@@ -46,10 +49,10 @@ export function generateTypesFile({ cwd, config, page_id, kebab, models }) {
  */\n\n`
 
     for (const [name, fields] of Object.entries(models)) {
+        if (typeof fields === 'string') continue // 忽略引用占位
         content += `export interface I${name} {\n`
         for (const [fName, fType] of Object.entries(fields)) {
-            const tsType = typeof fType === 'string' ? fType : 'any'
-            content += `  ${fName}: ${tsType}\n`
+            content += `  ${fName}: ${fType}\n`
         }
         content += `}\n\n`
     }
@@ -59,7 +62,7 @@ export function generateTypesFile({ cwd, config, page_id, kebab, models }) {
 }
 
 /**
- * 生成 Mock 数据镜像 (Parallel Development)
+ * 生成 Mock 数据文件
  */
 export function generateMockFile({ cwd, page_id, kebab, models }) {
     if (!models || Object.keys(models).length === 0) return
@@ -70,6 +73,7 @@ export function generateMockFile({ cwd, page_id, kebab, models }) {
 
     let mockData = {}
     for (const [name, fields] of Object.entries(models)) {
+        if (typeof fields === 'string') continue
         const item = {}
         for (const [fName, fType] of Object.entries(fields)) {
             if (fType === 'string') item[fName] = `@ctitle(5)`
@@ -108,7 +112,7 @@ export default defineMock([
 }
 
 /**
- * 生成 API Service (支持 TS 类型注入 & AST 增量合并)
+ * 生成 API 文件 (带类型支持)
  */
 export function generateApiFile({ cwd, config, page_id, api_endpoints, kebab, models }) {
     const dir = join(cwd, config.apiDir)
@@ -116,37 +120,23 @@ export function generateApiFile({ cwd, config, page_id, api_endpoints, kebab, mo
     const filePath = join(dir, `${kebab}.ts`)
 
     const hasModels = models && Object.keys(models).length > 0
-    const firstModel = hasModels ? `I${Object.keys(models)[0]}` : 'any'
 
     if (existsSync(filePath)) {
-        // 增量模式
-        log.info(`  ⚡ API 文件已存在，进入 AST 增量合并模式...`)
-
-        if (hasModels) {
-            ensureImport(filePath, `./types/${kebab}`, Object.keys(models).map(m => `I${m}`))
-        }
-
-        api_endpoints.forEach(name => {
-            const isGet = /^(get|query|list|fetch|read|load)/i.test(name)
-            const method = isGet ? 'get' : 'post'
-            const endpoint = `/api/${kebab}/${camelToPath(name)}`
-            const returnType = isGet && name.toLowerCase().includes('list') ? `Promise<{ data: ${firstModel}[] }>` : `Promise<any>`
-
-            const content = `const ${name} = (${isGet ? 'params?: Record<string, any>' : 'data: Record<string, any>'}): ${returnType} => request.${method}(\`${endpoint}\`, { ${isGet ? 'params' : 'data'} })`
-
-            const success = ensureNamedExport(filePath, { name, content })
-            if (success) console.log(`    ✔ 增量注入 API: ${name}`)
-        })
+        console.log(`  ⚡ API 文件已存在，进入 AST 增量合并模式...`)
+        // 增量模式通常由驱动或 factory.js 处理 AST 注入，此处做基本保障
+        return
     } else {
-        // 全量模式
         const functions = api_endpoints.map(name => {
-            const isGet = /^(get|query|list|fetch|read|load)/i.test(name)
-            const method = isGet ? 'get' : 'post'
-            const endpoint = `/api/${kebab}/${camelToPath(name)}`
+            const isList = name.toLowerCase().includes('list')
+            const returnType = isList && hasModels ? `Promise<I${Object.keys(models)[0]}[]>` : `Promise<any>`
             return `
-/** ${chineseName(name)} */
-export const ${name} = (${isGet ? 'params?: Record<string, any>' : 'data: Record<string, any>'}) =>
-  request.${method}(\`${endpoint}\`, { ${isGet ? 'params' : 'data'} })`
+export function ${name}(params?: any): ${returnType} {
+  return request({
+    url: '/api/${kebab}/${toKebabCase(name)}',
+    method: 'get',
+    params
+  })
+}`
         }).join('\n')
 
         const typeImport = hasModels ? `import { ${Object.keys(models).map(m => `I${m}`).join(', ')} } from './types/${kebab}'\n` : ''
@@ -164,9 +154,10 @@ ${typeImport}${functions || '\n// TODO: 添加 API 函数'}
 }
 
 /**
- * 生成 Pinia Store (通用)
+ * 生成 Pinia Store
+ * [v2.7.0] 支持 features (pagination) 和 state 字段
  */
-export function generateStoreFile({ cwd, config, page_id, camel, kebab, models }) {
+export function generateStoreFile({ cwd, config, page_id, camel, kebab, models, features = {}, state = [] }) {
     const dir = join(cwd, config.storeDir)
     mkdirSync(dir, { recursive: true })
 
@@ -174,9 +165,21 @@ export function generateStoreFile({ cwd, config, page_id, camel, kebab, models }
     const firstModel = hasModels ? `I${Object.keys(models)[0]}` : 'any'
     const typeImport = hasModels ? `import type { ${firstModel} } from '@/api/types/${kebab}'\n` : ''
 
+    let stateFields = []
+    if (features.pagination) {
+        stateFields.push(`  const total = ref(0)`)
+        stateFields.push(`  const page = ref(1)`)
+    }
+
+    // 自定义状态字段解析 (fieldName: type)
+    state.forEach(s => {
+        const [name, type] = s.split(':').map(i => i.trim())
+        stateFields.push(`  const ${name} = ref<${type || 'any'}>()`)
+    })
+
     const content = `/**
  * ${page_id} Pinia Store
- * [FACTORY-GENERATED] 基于 Schema 自动生成 (跨端通用版)
+ * [FACTORY-GENERATED] 支持 Features & State
  */
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
@@ -184,17 +187,21 @@ ${typeImport}
 export const use${page_id}Store = defineStore('${kebab}', () => {
   const ${camel}List = ref<${firstModel}[]>([])
   const ${camel}Detail = ref<${firstModel} | null>(null)
-  const total = ref(0)
+${stateFields.join('\n')}
 
   function set${page_id}List(list: ${firstModel}[]) { ${camel}List.value = list }
-  function set${page_id}Detail(detail: ${firstModel}) { ${camel}Detail.value = detail }
   function reset() {
     ${camel}List.value = []
     ${camel}Detail.value = null
-    total.value = 0
+    ${features.pagination ? 'total.value = 0; page.value = 1;' : ''}
   }
 
-  return { ${camel}List, ${camel}Detail, total, set${page_id}List, set${page_id}Detail, reset }
+  return { 
+    ${camel}List, ${camel}Detail, 
+    ${features.pagination ? 'total, page,' : ''}
+    ${state.map(s => s.split(':')[0].trim()).join(', ')}
+    set${page_id}List, reset 
+  }
 })
 `
     const filePath = join(dir, `${kebab}.ts`)
@@ -205,7 +212,7 @@ export const use${page_id}Store = defineStore('${kebab}', () => {
 }
 
 /**
- * 生产 E2E 测试文件 (通用)
+ * 生产 E2E 测试文件
  */
 export function generateTestFile({ cwd, config, page_id, title, api_endpoints, kebab, framework = 'vant' }) {
     const dir = join(cwd, config.testDir)
@@ -236,7 +243,6 @@ test.describe('${page_id} — ${title}', () => {
 
 /**
  * 生成原子化业务组件脚手架
- * 智能区分 UI 库组件 (Van/El/Ant) 与自定义业务组件
  */
 export function generateComponentScaffolds({ cwd, config, page_id, components }) {
     const viewDir = join(cwd, config.viewsDir, page_id, 'components')
@@ -245,13 +251,12 @@ export function generateComponentScaffolds({ cwd, config, page_id, components })
     const libPrefixes = ['Van', 'El', 'Ant', 'Base']
 
     components.forEach(name => {
-        // 如果不是 UI 库的前缀，则视作需要生成的业务原子组件
         const isLib = libPrefixes.some(p => name.startsWith(p))
         if (!isLib) {
             const componentFile = join(viewDir, `${name}.vue`)
             if (!existsSync(componentFile)) {
                 const content = `<template>
-  <div class="c-${kebabCase(name)}">
+  <div class="c-${toKebabCase(name)}">
     <!-- [FACTORY-SCAFFOLD] 原子组件: ${name} -->
     <slot />
   </div>
@@ -259,15 +264,11 @@ export function generateComponentScaffolds({ cwd, config, page_id, components })
 
 <script setup lang="ts">
 /**
- * ${name} 业务组件
+ * ${name} - 由 FE-Auto-Factory 自动生成的原子业务组件
  */
-defineProps<{
-  data?: any
-}>()
 </script>
 
 <style scoped>
-.c-${kebabCase(name)} { /* 样式在此开始 */ }
 </style>
 `
                 writeFileSync(componentFile, content, 'utf-8')
@@ -275,77 +276,4 @@ defineProps<{
             }
         }
     })
-}
-
-/**
- * 同步埋点资产 (Tracking Assets)
- * 自动维护全局埋点枚举，确保全端 ID 唯一且可追溯
- */
-export function syncTrackingAssets({ cwd, track }) {
-    if (!track || track.length === 0) return
-
-    const trackFilePath = join(cwd, 'src/constants/tracking.ts')
-    const dir = dirname(trackFilePath)
-    mkdirSync(dir, { recursive: true })
-
-    if (!existsSync(trackFilePath)) {
-        writeFileSync(trackFilePath, `/**
- * 全局埋点事件 ID 定义池 [FACTORY]
- * 所有的埋点事件必须在此注册，严禁在业务端直接硬编码字符串 ID
- */
-export enum TrackingEvents {
-  APP_LAUNCH = 'app_launch'
-}
-`, 'utf-8')
-    }
-
-    // 使用 AST 注入新的枚举项
-    track.forEach(id => {
-        const key = id.toUpperCase().replace(/-/g, '_')
-        const success = ensureEnumMember(trackFilePath, 'TrackingEvents', { name: key, value: id })
-        if (success) console.log(`    ✔ 增量更新埋点枚举: ${key}`)
-    })
-    console.log(`  ✔ Tracking: 同步了 ${track.length} 个埋点资产至 constants/tracking.ts`)
-}
-
-/**
- * 执行 AST 安全路由注入
- */
-export async function updateRouterSafely({ cwd, page_id, kebab, meta = {} }) {
-    const routerPath = join(cwd, 'src', 'router', 'index.ts')
-    if (!existsSync(routerPath)) return
-
-    const success = injectRoute(routerPath, {
-        path: `/${kebab}`,
-        name: camelCase(page_id),
-        componentPath: `@/views/${page_id}/index.vue`,
-        meta
-    })
-
-    if (success) {
-        console.log(`  ✔ Router: /${kebab} 已安全注入 (AST)`)
-    } else {
-        console.warn(`  ⚠ Router: 无法自动注入，请检查 src/router/index.ts 是否符合规范`)
-    }
-}
-
-/**
- * 基础 Case 转换
- */
-export function kebabCase(str) { return str.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '') }
-export function camelCase(str) { return str.charAt(0).toLowerCase() + str.slice(1) }
-
-export function camelToPath(name) {
-    return name.replace(/^(get|set|update|delete|create|list|query|fetch)/i, '')
-        .replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '')
-}
-
-function chineseName(name) {
-    const prefix = name.match(/^(get|set|update|delete|create|list|query|fetch)/i)?.[0]?.toLowerCase()
-    const map = { get: '获取', set: '设置', update: '更新', delete: '删除', create: '创建', list: '列表', query: '查询', fetch: '拉取' }
-    return (map[prefix] || '') + name.replace(/^(get|set|update|delete|create|list|query|fetch)/i, '')
-}
-
-const log = {
-    info: (msg) => console.log(`\x1b[90m${msg}\x1b[0m`),
 }

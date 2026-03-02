@@ -1,0 +1,20 @@
+---
+page_id: ProductList
+title: 商品列表
+layout: admin
+features:
+  pagination: true
+  search_bar: true
+state:
+  - "currentCategory: string"
+  - "lastActionTime: number"
+models:
+  Product:
+    id: number
+    name: string
+    price: number
+    stock: number
+api_endpoints:
+  - getProductList
+version: "1.1"
+---

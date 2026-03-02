@@ -1,6 +1,6 @@
 {
     "name": "@hnhok/fe-auto-factory",
-    "version": "2.4.1",
+    "version": "2.7.0",
     "description": "🏭 前端自动化工厂 - Schema驱动的全生命周期前端工程化体系",
     "type": "module",
     "repository": {

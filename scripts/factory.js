@@ -14,7 +14,7 @@ import { parseFrontmatter } from './utils/schema.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
-const FACTORY_VERSION = '2.6.0'
+const FACTORY_VERSION = '2.7.0'
 
 // ─── ANSI Color Helpers ───────────────────────────────────────────────────────
 const c = {
@@ -225,12 +225,16 @@ async function cmdGenerate(args) {
     log.warn(`Ajv 校验环节报错或未安装，已跳过强校验: ${e.message}`)
   }
 
-  const { page_id, title = page_id, layout = 'blank', api_endpoints = [], components = [], track = [], models = {} } = schema
+  const {
+    page_id, title = page_id, layout = 'blank',
+    api_endpoints = [], components = [], track = [],
+    models = {}, features = {}, state = []
+  } = schema
   const camel = toCamelCase(page_id)
   const kebab = toKebabCase(page_id)
 
   log.info(`生成页面: ${page_id} (${title})`)
-  log.gray(`布局: ${layout} | API: ${api_endpoints.join(', ') || '无'} | 组件: ${components.join(', ') || '无'} | 埋点: ${track.length} 项 | 模型: ${Object.keys(models).length} 个`)
+  log.gray(`布局: ${layout} | API: ${api_endpoints.join(', ') || '无'} | 模型: ${Object.keys(models).length} 个 | 特性: ${Object.keys(features).join(',') || '无'}`)
 
   const projectRoot = process.cwd()
   const globalModels = loadGlobalModels(projectRoot)
@@ -247,25 +251,28 @@ async function cmdGenerate(args) {
   log.info(`工厂接管：预设 [${preset}] | 项目根目录: ${projectRoot}`)
   if (Object.keys(globalModels).length > 0) log.gray(`加载全局模型池: 发现 ${Object.keys(globalModels).length} 个共享模型`)
 
-  // ─── 模型合并与 $ref 解析 ───
-  const finalModels = { ...globalModels, ...models }
-  Object.keys(finalModels).forEach(mName => {
-    const fields = finalModels[mName]
-    if (fields && typeof fields === 'object') {
+  // ─── 模型池构建与 $ref 核心转换 (工业级) ───
+  // pageModels: 本地定义的模型 (生成类型的来源)
+  // pool: 全量模型池 (用于 $ref 查找)
+  const pool = { ...globalModels, ...models }
+  const pageModels = { ...models }
+
+  const resolveRefs = (target) => {
+    Object.keys(target).forEach(mName => {
+      const fields = target[mName]
+      if (typeof fields !== 'object') return
       Object.keys(fields).forEach(fName => {
         const val = fields[fName]
         if (typeof val === 'string' && val.startsWith('$ref:')) {
           const refTarget = val.split(':')[1].trim()
-          // 如果引用的目标在模型池中，自动转换为对应的接口名
-          if (finalModels[refTarget]) {
-            finalModels[mName][fName] = `I${refTarget}`
-          } else {
-            finalModels[mName][fName] = 'any'
-          }
+          target[mName][fName] = pool[refTarget] ? `I${refTarget}` : 'any'
         }
       })
-    }
-  })
+    })
+  }
+
+  resolveRefs(pageModels)
+  resolveRefs(globalModels)
 
   // ─── 驱动沙箱加载 (优先级: 本地项目 > 工厂内置) ──────────────────────
   let generator = null
@@ -285,7 +292,8 @@ async function cmdGenerate(args) {
 
     // ─── 执行生成 ───────────────────────────────────────────
     await generator.generatePage({
-      page_id, title, layout, api_endpoints, components, track, models: finalModels, camel, kebab,
+      page_id, title, layout, api_endpoints, components, track, features, state,
+      models: pageModels, globalModels, camel, kebab,
       config: factoryConfig // 将合并后的配置注入驱动
     })
   } catch (err) {

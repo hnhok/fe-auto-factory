@@ -22,9 +22,11 @@
 *   **[Done] Atomic Scaffolding & Tracking Sync**: v2.4+ Component skeleton & enum management
 *   **[Done] Models & Deep Type Safety**: Model-driven TS interfaces & type injection
 *   **[Done] Parallel Development (Mock)**: Automated Mock data generation from models
+*   **[Done] Architectural Doctor**: `fe-factory doctor` for environment self-checks
+*   **[Done] Feature-Aware Scaffolding**: Standardized patterns for pagination, refresh, and search
+*   **[Done] Global Model Pool ($ref)**: Centralized domain modeling and cross-page reuse
 *   **[Planned] 可视化图纸搭建工作台 (Low-Code GUI)**:
     *   启动 `fe-factory ui` 生成本地 Web 界面，支持通过拖拽组件、点选接口来生成 YAML Schema。
-*   **[Planned] Architectural Doctor**: `fe-factory doctor` for environment self-checks
 *   **[稳健] 全量 AST 突变覆盖**：
     *   将 Hook 注入、API 导出、Store 注册等所有文件修改逻辑全部切换为 AST 操作，确保 100% 的代码合并成功率。
 

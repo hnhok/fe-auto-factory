@@ -1,76 +1,115 @@
 /**
  * FE-Auto-Factory 代码生成渲染器 [Vant H5 适配器]
- * 主要负责 UI 层级 (View/Hook) 的拼装，通用逻辑交由 base.js 处理
  */
 import { writeFileSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import * as base from './base.js'
 
 export async function generatePage(params) {
-  const { page_id, title, layout, api_endpoints, camel, kebab, models = {} } = params
+  const { page_id, title, layout, api_endpoints, camel, kebab, models = {}, features = {}, state = [] } = params
   const cwd = process.cwd()
   const config = base.getFactoryConfig(cwd)
 
   // 1. 生成渲染驱动特有的逻辑 (UI 层)
-  await generateViewFile({ cwd, config, page_id, title, layout, camel, kebab })
-  await generateHookFile({ cwd, config, page_id, title, api_endpoints, camel, kebab, models })
+  await generateViewFile({ cwd, config, page_id, title, layout, camel, kebab, models, features })
+  await generateHookFile({ cwd, config, page_id, title, api_endpoints, camel, kebab, models, features, state })
 
-  // 2. 多端通用资产基建 (SUPERPOWERS)
+  // 2. 多端通用资产基建
   base.generateTypesFile({ cwd, config, page_id, kebab, models })
   base.generateApiFile({ cwd, config, page_id, api_endpoints, kebab, models })
-  base.generateStoreFile({ cwd, config, page_id, camel, kebab, models })
+  base.generateStoreFile({ cwd, config, page_id, camel, kebab, models, features, state })
   base.generateMockFile({ cwd, page_id, kebab, models })
   base.generateTestFile({ cwd, config, page_id, title, api_endpoints, kebab, framework: 'vant' })
 
-  // ── 新增: 原子组件与埋点同步 ──
   base.generateComponentScaffolds({ cwd, config, page_id, components: params.components || [] })
   base.syncTrackingAssets({ cwd, track: params.track || [] })
 
-  // 3. AST 级路由安全注入
-  await base.updateRouterSafely({ cwd, page_id, kebab })
+  await base.updateRouterSafely({ cwd, page_id, kebab, meta: { title } })
 }
 
 /**
  * 渲染 Vant 风格的 View 模板
  */
-async function generateViewFile({ cwd, config, page_id, title, layout, camel, kebab }) {
+async function generateViewFile({ cwd, config, page_id, title, layout, camel, kebab, models, features }) {
   const dir = join(cwd, config.viewsDir, page_id)
   mkdirSync(join(dir, 'components'), { recursive: true })
   mkdirSync(join(dir, 'hooks'), { recursive: true })
 
+  const hasModels = models && Object.keys(models).length > 0
+  const firstModelName = hasModels ? Object.keys(models)[0] : null
+  const fields = firstModelName ? Object.keys(models[firstModelName]) : ['id', 'title', 'desc']
+
+  const itemContent = fields.map(f => `<p>${f.toUpperCase()}: {{ item.${f} }}</p>`).join('\n            ')
+
+  let innerContent = `
+      <div v-for="item in state.list" :key="item.id" class="list-item">
+          ${itemContent}
+      </div>`
+
+  if (features.pagination) {
+    innerContent = `
+      <van-list
+        v-model:loading="loading"
+        :finished="state.finished"
+        finished-text="没有更多了"
+        @load="onLoad"
+      >
+        ${innerContent}
+      </van-list>`
+  }
+
+  if (features.pull_to_refresh) {
+    innerContent = `
+    <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
+      ${innerContent}
+    </van-pull-refresh>`
+  }
+
   const content = `<template>
   <div class="${kebab}-page" data-page-id="${page_id}">
-    <van-nav-bar title="${title}" left-arrow @click-left="router.back()" />
+    <van-nav-bar :title="'${title}'" left-arrow @click-left="router.back()" />
     
-    <div v-if="loading" class="flex justify-center py-10">
-      <van-loading type="spinner" />
-    </div>
-
-    <van-empty v-else-if="error" image="error" :description="error">
-       <van-button type="primary" size="small" @click="refresh">重试</van-button>
-    </van-empty>
-
-    <div v-else class="p-4">
-      <!--【工厂生成】${title} 业务区域 -->
-      ${layout === 'admin' ? '<div class="admin-h5-box">Admin 布局</div>' : '<!-- 业务 UI -->'}
-      <van-empty description="请在此开始你的表演..." />
+    <div class="content">
+      ${innerContent}
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { use${page_id} } from './hooks/use${page_id}'
 
 const router = useRouter()
-const { loading, error, refresh } = use${page_id}()
-</script>
-`
-  writeFileSync(join(dir, 'index.vue'), content, 'utf-8')
-  console.log(`  ✔ View: ${config.viewsDir}/${page_id}/index.vue (Vant)`)
+const refreshing = ref(false)
+const { loading, error, state, refresh, loadMore } = use${page_id}()
+
+const onRefresh = async () => {
+  await refresh()
+  refreshing.value = false
 }
 
-async function generateHookFile({ cwd, config, page_id, title, api_endpoints, camel, kebab, models }) {
+const onLoad = () => {
+  loadMore()
+}
+</script>
+
+<style scoped>
+.content { padding: 16px; }
+.list-item { 
+  background: #fff; 
+  padding: 12px; 
+  margin-bottom: 12px; 
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+</style>
+`
+  writeFileSync(join(dir, 'index.vue'), content, 'utf-8')
+  console.log(`  ✔ View: ${config.viewsDir}/${page_id}/index.vue (Vant H5)`)
+}
+
+async function generateHookFile({ cwd, config, page_id, title, api_endpoints, camel, kebab, models, features, state = [] }) {
   const dir = join(cwd, config.viewsDir, page_id, 'hooks')
   const apiImportPath = `@/${config.apiDir.replace('src/', '')}/${kebab}`
   const primaryApi = api_endpoints[0] || null
@@ -79,10 +118,21 @@ async function generateHookFile({ cwd, config, page_id, title, api_endpoints, ca
   const firstModel = hasModels ? `I${Object.keys(models)[0]}` : 'any'
   const typeImport = hasModels ? `import type { ${firstModel} } from '@/api/types/${kebab}'\n` : ''
 
+  let stateProps = [`    list: [] as ${firstModel}[]`]
+  if (features.pagination) {
+    stateProps.push(`    page: 1`)
+    stateProps.push(`    finished: false`)
+  }
+  state.forEach(s => {
+    const [name, type] = s.split(':').map(i => i.trim())
+    stateProps.push(`    ${name}: undefined as ${type || 'any'}`)
+  })
+
   const content = `/**
- * use${page_id} — Composable [Vant]
+ * use${page_id} — Composable [Vant H5]
+ * [FACTORY-GENERATED] 支持 Features & State
  */
-import { ref, onMounted, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { showToast } from 'vant'
 ${typeImport}${primaryApi ? `import { ${primaryApi} } from '${apiImportPath}'` : ''}
 
@@ -90,13 +140,26 @@ export function use${page_id}() {
   const loading = ref(false)
   const error = ref<string | null>(null)
   const state = reactive({ 
-    list: [] as ${firstModel}[]
+${stateProps.join(',\n')}
   })
+
+  const refresh = async () => {
+    state.page = 1
+    state.finished = false
+    state.list = []
+    await fetchData()
+  }
+
+  const loadMore = async () => {
+    if (state.finished) return
+    state.page++
+    await fetchData()
+  }
 
   const fetchData = async () => {
     loading.value = true
     try {
-      ${primaryApi ? `const res = await ${primaryApi}({}) as any\n      state.list = res?.data ?? res` : '// NO-API'}
+      ${primaryApi ? `const res = await ${primaryApi}({ page: state.page }) as any\n      const newList = res?.data ?? res\n      state.list = [...state.list, ...newList]\n      if (newList.length < 10) state.finished = true` : '// NO-API\n      state.finished = true'}
     } catch (e: any) {
       error.value = e.message
       showToast(e.message)
@@ -105,8 +168,11 @@ export function use${page_id}() {
     }
   }
 
-  onMounted(fetchData)
-  return { loading, error, refresh: fetchData, state }
+  onMounted(() => {
+    if (!${features.pagination ? 'true' : 'false'}) fetchData()
+  })
+
+  return { loading, error, state, refresh, loadMore }
 }
 `
   writeFileSync(join(dir, `use${page_id}.ts`), content, 'utf-8')
