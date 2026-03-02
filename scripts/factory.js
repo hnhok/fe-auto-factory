@@ -589,6 +589,11 @@ async function cmdUpdate() {
   console.log('')
 }
 
+async function cmdUI(args) {
+  const { startUIServer } = await import('./ui/server.js')
+  startUIServer(4000)
+}
+
 // ─── Main Router ──────────────────────────────────────────────────────────────
 const [, , command, ...rest] = process.argv
 
@@ -601,6 +606,7 @@ switch (command) {
   case 'sync': await cmdSync(rest); break
   case 'doctor': await cmdDoctor(); break
   case 'update': await cmdUpdate(); break
+  case 'ui': await cmdUI(rest); break
   case '--version':
   case '-v':
     console.log(`FE-Auto-Factory v${FACTORY_VERSION}`)
