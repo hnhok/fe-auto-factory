@@ -8,6 +8,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, cpSync, rmSync, rea
 import { resolve, dirname, join } from 'path'
 import { toKebabCase, toCamelCase } from './utils/string.js'
 import { parseFrontmatter } from './utils/schema.js'
+import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
