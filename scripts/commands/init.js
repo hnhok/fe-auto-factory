@@ -1,16 +1,26 @@
-import { readFileSync, writeFileSync, existsSync, cpSync, rmSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, cpSync, rmSync, mkdirSync, readdirSync } from 'fs'
 import { resolve, join } from 'path'
 import { spawnSync } from 'child_process'
-import inquirer from 'inquirer'
 import { log, printBanner } from '../utils/logger.js'
 
-export async function cmdInit(initialProjectName, FACTORY_VERSION, ROOT) {
+/**
+ * ─── Command: init ───────────────────────────────────────────────────────────
+ * 初始化一个新的项目脚手架资产
+ */
+export async function cmdInit(args, FACTORY_VERSION, ROOT) {
     printBanner()
 
-    let projectName = initialProjectName
-    let preset = ''
+    // 1. 处理入参 (args 现在是一个数组 [...rest])
+    const initialProjectName = args.find(a => !a.startsWith('--'))
+    const presetFlagIdx = args.indexOf('--preset')
+    let preset = presetFlagIdx !== -1 ? (args[presetFlagIdx + 1] || '') : ''
 
-    // 1. 获取项目名称
+    let projectName = initialProjectName
+
+    // 载入 Inquirer (与主路由保持一致的动态载入)
+    const inquirer = (await import('inquirer')).default
+
+    // 获取项目名
     if (!projectName) {
         const answers = await inquirer.prompt([
             {
@@ -24,24 +34,29 @@ export async function cmdInit(initialProjectName, FACTORY_VERSION, ROOT) {
         projectName = answers.projectName
     }
 
-    // 2. 选择预设栈 (v3.4.0 扩充)
-    const { selectedPreset } = await inquirer.prompt([
-        {
-            type: 'list',
-            name: 'selectedPreset',
-            message: '请选择项目基础预设栈 (Presets):',
-            choices: [
-                { name: 'Vue3 + Element-Plus (后台管理系统 - 推荐)', value: 'vue3-element-admin' },
-                { name: 'React + Ant-Design (后台管理系统)', value: 'react-antd-admin' },
-                { name: 'Vue3 + Vant (移动端 H5)', value: 'vue3-vant-h5' },
-                { name: '自定义模板 (NPM / Git)', value: 'custom' }
-            ]
-        }
-    ])
-    preset = selectedPreset
+    // 2. 选择预设栈
+    if (!preset) {
+        const { selectedPreset } = await inquirer.prompt([
+            {
+                type: 'list',
+                name: 'selectedPreset',
+                message: '请选择项目基础预设栈 (Presets):',
+                choices: [
+                    { name: 'Vue3 + Element-Plus (后台管理系统 - 推荐)', value: 'vue3-element-admin' },
+                    { name: 'React + Ant-Design (后台管理系统)', value: 'react-antd-admin' },
+                    { name: 'Vue3 + Vant (移动端 H5)', value: 'vue3-vant-h5' },
+                    { name: '自定义模板 (NPM / Git)', value: 'custom' }
+                ]
+            }
+        ])
+        preset = selectedPreset
+    }
 
     if (preset === 'custom') {
-        log.warn('自定义模板功能正在灰度中，请先选择内置预设。')
+        log.warn('自定义模板功能正在灰度中，目前支持以下内置预设:')
+        log.gray('  - vue3-element-admin')
+        log.gray('  - react-antd-admin')
+        log.gray('  - vue3-vant-h5')
         process.exit(0)
     }
 
@@ -53,29 +68,34 @@ export async function cmdInit(initialProjectName, FACTORY_VERSION, ROOT) {
         process.exit(1)
     }
 
-    // 3. 寻找模板资产
-    // 逻辑：优先寻找同级目录的模板项目 (Local Monorepo Path)，兜底寻找内置 templates/base-*
-    const localTemplatePath = resolve(ROOT, '..', preset)
-    const builtInTemplatePath = join(ROOT, 'templates', `base-${preset}`)
+    /**
+     * 3. 寻找模板资产
+     * 策略：
+     * a. 如果是在库本身的 monorepo 环境下 (比如开发时)，找 ../{preset}
+     * b. 如果是作为 npm package (npx) 安装的，找 ROOT/templates/base-{preset}
+     */
+    const monorepoPath = resolve(ROOT, '..', preset)
+    const builtInPath = join(ROOT, 'templates', `base-${preset}`)
 
     let finalSrc = ''
-    if (existsSync(localTemplatePath)) {
-        finalSrc = localTemplatePath
-    } else if (existsSync(builtInTemplatePath)) {
-        finalSrc = builtInTemplatePath
+    if (existsSync(monorepoPath) && readdirSync(monorepoPath).length > 2) {
+        finalSrc = monorepoPath
+    } else if (existsSync(builtInPath)) {
+        finalSrc = builtInPath
     }
 
     if (!finalSrc) {
         log.error(`找不到预设 [${preset}] 的模板资产。`)
-        log.gray(`期望路径: ${localTemplatePath} 或 ${builtInTemplatePath}`)
+        log.gray(`  已探测路径 A (Monorepo): ${monorepoPath} (存在: ${existsSync(monorepoPath)})`)
+        log.gray(`  已探测路径 B (Built-in): ${builtInPath} (存在: ${existsSync(builtInPath)})`)
+        log.gray('提示：如果是核心开发者，请确保模板目录已就绪并包含 package.json；如果是普通用户，请报告 BUG（可能该预设尚未发布）。')
         process.exit(1)
     }
 
-    log.info(`从资产源拷贝: ${finalSrc}`)
+    log.info(`准备从源拷贝资产: ${finalSrc}`)
 
     // 拷贝策略：排除 node_modules, dist, .git
     try {
-        // 使用 cpSync (Node 16+)
         cpSync(finalSrc, dest, {
             recursive: true,
             filter: (src) => {
@@ -84,23 +104,24 @@ export async function cmdInit(initialProjectName, FACTORY_VERSION, ROOT) {
             }
         })
     } catch (err) {
-        log.error('拷贝过程中出现错误，尝试使用 robocopy (Windows 备份) 兜底...')
-        spawnSync('robocopy', [finalSrc, dest, '/E', '/XD', 'node_modules', 'dist', '.git'], { shell: true })
+        log.error('拷贝过程中出现错误:')
+        console.error(err)
+        process.exit(1)
     }
 
-    // 4. 更新 package.json
+    // 4. 更新新项目的 package.json
     const pkgPath = join(dest, 'package.json')
     if (existsSync(pkgPath)) {
         try {
-            const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
+            const pkgRaw = readFileSync(pkgPath, 'utf-8')
+            const pkg = JSON.parse(pkgRaw)
             pkg.name = projectName
             pkg.version = '1.0.0'
-            pkg.description = `Based on FE-Auto-Factory v${FACTORY_VERSION} (${preset})`
-            // 去除不必要的仓库信息
-            delete pkg.repository
+            pkg.description = `Project generated by FE-Auto-Factory v${FACTORY_VERSION} using preset [${preset}]`
+            delete pkg.repository // 删除模版原有的仓库信息
             writeFileSync(pkgPath, JSON.stringify(pkg, null, 2), 'utf-8')
         } catch (e) {
-            log.warn('无法更新 package.json 的项目元数据')
+            log.warn('无法解析模板 package.json，跳过元数据自动更新。')
         }
     }
 
@@ -122,21 +143,20 @@ export async function cmdInit(initialProjectName, FACTORY_VERSION, ROOT) {
     }
     writeFileSync(join(factoryDir, 'config.json'), JSON.stringify(factoryConfig, null, 2), 'utf-8')
 
-    // 6. 写入初始化文档
+    // 📄 写入简单的初始化文档
     const docsDir = join(dest, 'docs')
-    if (!existsSync(docsDir)) {
-        mkdirSync(docsDir, { recursive: true })
-    }
-    const initLog = `# ${projectName} 变更日志\n\n## [v1.0.0] - ${new Date().toLocaleDateString()}\n- ⚡ 由 FE-Auto-Factory 初始化落地\n- 预设栈: ${preset}\n- 引擎版本: v${FACTORY_VERSION}\n`
+    if (!existsSync(docsDir)) mkdirSync(docsDir, { recursive: true })
+    const initLog = `# ${projectName} 变更日志\n\n## [v1.0.0] - ${new Date().toLocaleDateString()}\n- ✅ 由 FE-Auto-Factory 驱动落地\n- 预设底座: ${preset}\n- 引擎版本: v${FACTORY_VERSION}\n`
     writeFileSync(join(docsDir, 'CHANGELOG.md'), initLog, 'utf-8')
 
-    log.success(`项目 "${projectName}" 初始化成功！`)
+    log.success(`项目 "${projectName}" 完美初始化！`)
     console.log('')
     log.gray(`🚀 开启赋能之路:`)
     log.gray(`  1. cd ${projectName}`)
     log.gray(`  2. npm install`)
     log.gray(`  3. npm run dev`)
     console.log('')
-    log.info(`💡 接下来，您可以投掷 Swagger 文档或设计稿来生成页面了！`)
+    log.info(`💡 接下来，开始注入您的业务图纸 (Schemas) 或 UI 设计稿吧！`)
 }
+
 

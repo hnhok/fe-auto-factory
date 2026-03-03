@@ -289,7 +289,7 @@ async function cmdUI(args) {
 const [, , command, ...rest] = process.argv
 
 switch (command) {
-  case 'init': await cmdInit(rest[0]); break
+  case 'init': await cmdInit(rest); break
   case 'generate': await cmdGenerate(rest); break
   case 'validate': await cmdValidate(); break
   case 'test': await cmdTest(rest); break
