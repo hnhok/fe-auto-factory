@@ -6,47 +6,58 @@ export default defineConfig({
     themeConfig: {
         nav: [
             { text: '首页', link: '/' },
-            { text: '指南', link: '/guide/getting-started' },
-            { text: '架构揭秘', link: '/architecture/' },
-            { text: 'Schema 规范', link: '/guide/schema' }
+            { text: '指南', link: '/guide/introduction' },
+            { text: '架构揭秘', link: '/architecture/overview' },
+            { text: 'AI 工作流', link: '/workflow/vision-agent' }
         ],
 
         sidebar: {
             '/guide/': [
                 {
-                    text: '入门指南',
+                    text: '基础与入门',
                     items: [
-                        { text: '快速上手', link: '/guide/getting-started' },
-                        { text: '开发实战指南', link: '/guide/core-usage' },
-                        { text: '迭代更新日志 (Changelog)', link: '/guide/changelog' },
-                        { text: '项目总结与规划 (Roadmap)', link: '/guide/roadmap' },
-                        { text: 'Schema 配置', link: '/guide/schema' },
-                        { text: '高级布局 (Layout)', link: '/guide/layout' }
+                        { text: '项目演变与介绍', link: '/guide/introduction' },
+                        { text: '快速上手实战', link: '/guide/getting-started' },
+                        { text: '迭代更新日志 (Changelog)', link: '/guide/changelog' }
                     ]
                 },
                 {
-                    text: '进阶特性',
+                    text: '核心功能',
                     items: [
-                        { text: '同步后端 Swagger', link: '/guide/sync-swagger' },
-                        { text: '扩展与自定义 Hook', link: '/guide/advanced' }
+                        { text: 'Schema 图纸规范 (Core)', link: '/guide/schema-reference' },
+                        { text: '同步后端 Swagger API', link: '/guide/swagger-to-schema' }
+                    ]
+                },
+                {
+                    text: '演进规划',
+                    items: [
+                        { text: '未来演进规划 (Roadmap)', link: '/ROADMAP' }
                     ]
                 }
             ],
             '/architecture/': [
                 {
-                    text: '核心架构',
+                    text: '内核解析',
                     items: [
-                        { text: '设计哲学', link: '/architecture/' },
-                        { text: 'CLI 核心引擎', link: '/architecture/cli-engine' },
-                        { text: '模板挂载与增量更新', link: '/architecture/generators' },
-                        { text: '自动化测试体系', link: '/architecture/testing' }
+                        { text: '微内核全景大盘', link: '/architecture/overview' },
+                        { text: 'EJS模板与AST无损热缝合', link: '/architecture/ejs-and-ast' },
+                        { text: '开发 NPM 渲染沙箱插件', link: '/architecture/plugin-development' }
+                    ]
+                }
+            ],
+            '/workflow/': [
+                {
+                    text: 'AI 工作流体系',
+                    items: [
+                        { text: '从视觉稿直推业务骨架 (Vision)', link: '/workflow/vision-agent' },
+                        { text: '四大阶段守卫 (Pipeline)', link: '/workflow/skill-system' }
                     ]
                 }
             ]
         },
 
         socialLinks: [
-            { icon: 'github', link: 'https://github.com/your-org/fe-auto-factory' }
+            { icon: 'github', link: 'https://github.com/hnhok/fe-auto-factory' }
         ]
     }
 })

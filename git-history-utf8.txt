@@ -1,0 +1,37 @@
+﻿7ca84c6 - docs: adjust versions to v3.3.0 in changelog and guides
+bd2028a - docs(architecture): update cli-engine and generators to reflect micro-kernel and plugin system
+2557697 - docs: update README and ARCHITECTURE with micro-kernel details
+338490d - build: compile documentation
+bf4f464 - fix(cli): import fileURLToPath from url module
+93ae4c8 - 2.10.2
+f5ea83d - docs(architecture): document micro-kernel and release v2.10.1 changelog
+196f5e9 - chore: bump version to v2.10.1
+1496ea9 - 2.10.1
+ba3ec87 - feat(cli): refactor core architecture to use decoupled command modules and micro-kernel plugins
+803404b - feat: release UI console (fe-factory ui) - Visual Low-Code GUI prototype for v3.0
+b61d20f - feat: release v2.10.0 - Driver Lifecycle Hooks (beforeGenerate & afterGenerate) with auto-formatting
+3fc17f4 - docs: sync roadmap with v2.8 & v2.9 (Smart Mocking & Patching)
+7dbe418 - feat: v2.8.0 - Implementation of Smart Mocking engine and logic isolation
+2782e1c - docs: complete changelog for v2.3 and v2.4 (Driver Sandbox & Atomic Scaffolding)
+a6c4531 - docs: comprehensive documentation update for v2.7.0 (Changelog, Schema, Architecture, Skills)
+c2a81c8 - feat: v2.7.0 - Feature-Aware Scaffolding (Pagination/Search) & Global Model Pool logic refinement
+d329456 - feat: implement Global Model Pool () and Factory Doctor (v2.6.0)
+e0e89bf - feat: implement Deep Type Safety (Models) and Automated Mock Generation (v2.5.0)
+d32df0d - feat: add Atomic Component Scaffolding and Tracking Asset Sync (v2.4.1)
+0d0c0ba - feat: implement Driver Sandbox and AST Incremental Merge (v2.4.0)
+9a0cb67 - docs: add project summary and roadmap 2026
+c07ba51 - docs: add comprehensive guide for remote template registration and custom driver architecture
+a2e300b - docs: update getting-started and index features to highlight remote multi-terminal templates
+4e1ff03 - feat: use git clone to decouple template distribution
+2601bb3 - feat: implement adapter architecture for multi-framework support
+5f30dff - docs: heavily refactor getting-started into paths A/B and add core usage magic tutorial
+56c206f - chore: add vercel.json for correct docs deployment
+f0bf140 - docs: add update mechanism and local changelog tracing to getting started guide
+7f07fa4 - feat: auto write local CHANGELOG.md during init and update
+088dc5c - feat: add update command to sync latest agency flows and schemas
+6e7d4ce - feat: copy .agent workflows to target project during init
+63b6336 - feat: add img2code IDE AI workflow and interactive CLI prompt for image parsing
+f71fb1b - chore: bump version to 2.0.1 for package registry
+6ec40d0 - docs: update install documentation with GitHub Packages guide
+51e7050 - chore: enable github packages deployment pipeline
+a4ce529 - feat: init fe-auto-factory v2.0.0 open source edition with vitepress docs and demo project
