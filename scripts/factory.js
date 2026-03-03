@@ -40,6 +40,30 @@ async function cmdTest(args) {
   await _cmdTest(args)
 }
 
+// ─── Command: vision (with snapshot system) ──────────────────────────────────
+async function cmdVision(args) {
+  const { cmdImgToCode, cmdSnapshotList, cmdSnapshotDelete } = await import('./vision.js')
+  const subCmd = args[0]
+  // snapshot sub-commands
+  if (subCmd === 'snapshot') {
+    const subAction = args[1]
+    if (subAction === 'list') return cmdSnapshotList()
+    if (subAction === 'delete') return cmdSnapshotDelete(args[2])
+    console.log('Usage: vision snapshot list | vision snapshot delete <id>')
+    return
+  }
+  // direct: vision <imagePath> [--force] [--note "..."]
+  const imagePath = args.find(a => !a.startsWith('--'))
+  if (!imagePath) {
+    console.log('Usage: npx fe-factory vision <imagePath> [--force] [--note "..."]')
+    return
+  }
+  const force = args.includes('--force')
+  const noteIdx = args.indexOf('--note')
+  const note = noteIdx !== -1 ? (args[noteIdx + 1] || '') : ''
+  await cmdImgToCode(imagePath, { force, note })
+}
+
 // ─── Command: report ─────────────────────────────────────────────────────────
 async function cmdReport(args) {
   printBanner()
@@ -254,6 +278,7 @@ switch (command) {
   case 'doctor': await cmdDoctor(); break
   case 'update': await cmdUpdate(); break
   case 'ui': await cmdUI(rest); break
+  case 'vision': await cmdVision(rest); break
   case '--version':
   case '-v':
     console.log(`FE-Auto-Factory v${FACTORY_VERSION}`)
@@ -269,7 +294,8 @@ switch (command) {
           message: '请选择你要执行的操作:',
           choices: [
             { name: '🌟 生成新页面', value: 'generate' },
-            { name: '📸 从设计稿直接生成 (AI 视觉)', value: 'vision' },
+            { name: '📸 从设计稿直接生成 (AI 视觉 + 快照复用)', value: 'vision' },
+            { name: '📚 查看历史快照库', value: 'snapshot-list' },
             { name: '📦 初始化新项目', value: 'init' },
             { name: '🩺 运行环境诊断与自愈', value: 'doctor' },
             { name: '🌐 同步 Swagger 接口', value: 'sync' },
@@ -311,13 +337,13 @@ switch (command) {
         ]);
         await cmdGenerate(['--schema', path.join('schemas/pages', file)]);
       } else if (action === 'vision') {
-        printBanner();
-        console.log(`${c.green}${c.bold}✨ 已检测到本地 IDE/AI 助手环境！${c.reset}`);
-        console.log(`\n只需两步即可完成【设计稿大模型直出代码】闭环：\n`);
-        console.log(`  1. 请在您的 IDE（Cursor/Antigravity 等）侧边栏 AI 对话框中，直接上传您的产品图片/设计稿`);
-        console.log(`  2. 输入指令：${c.cyan}/img2code${c.reset}`);
-        console.log(`\nAI 助手将接管后续所有的图像分析、Schema 生成以及代码构建工作。\n`);
-        process.exit(0);
+        const { imagePath: visionPath } = await inquirer.prompt([
+          { type: 'input', name: 'imagePath', message: '请输入设计稿/原型图的文件路径 (image path):' }
+        ]);
+        await cmdVision([visionPath]);
+      } else if (action === 'snapshot-list') {
+        const { cmdSnapshotList } = await import('./vision.js');
+        cmdSnapshotList();
       } else if (action === 'doctor') {
         await cmdDoctor();
       } else if (action === 'init') {

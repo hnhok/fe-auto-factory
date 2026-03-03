@@ -33,3 +33,17 @@ export {
 export {
     parseFrontmatter
 } from '../utils/schema.js'
+
+// 重导视觉快照系统 (Vision Snapshot Store)
+export {
+    saveSnapshot,
+    listSnapshots,
+    findByImageHash,
+    findByKeyword,
+    deleteSnapshot
+} from '../snapshot/store.js'
+
+export {
+    findSimilarSnapshots,
+    findBestMatch
+} from '../snapshot/matcher.js'
