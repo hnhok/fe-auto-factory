@@ -6,15 +6,12 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, cpSync, rmSync, readdirSync } from 'fs'
 import { resolve, dirname, join } from 'path'
-import { fileURLToPath } from 'url'
-import { execSync, spawnSync } from 'child_process'
-
 import { toKebabCase, toCamelCase } from './utils/string.js'
 import { parseFrontmatter } from './utils/schema.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
-const FACTORY_VERSION = '2.10.0'
+const FACTORY_VERSION = '2.10.1'
 
 import { log, printBanner, c } from './utils/logger.js'
 
