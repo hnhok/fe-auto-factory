@@ -11,9 +11,10 @@ export async function cmdInit(args, FACTORY_VERSION, ROOT) {
     printBanner()
 
     // 1. 处理入参 (args 现在是一个数组 [...rest])
-    const initialProjectName = args.find(a => !a.startsWith('--'))
-    const presetFlagIdx = args.indexOf('--preset')
-    let preset = presetFlagIdx !== -1 ? (args[presetFlagIdx + 1] || '') : ''
+    const argsArray = Array.isArray(args) ? args : [args]
+    const initialProjectName = argsArray.find(a => a && typeof a === 'string' && !a.startsWith('--'))
+    const presetFlagIdx = argsArray.indexOf('--preset')
+    let preset = presetFlagIdx !== -1 ? (argsArray[presetFlagIdx + 1] || '') : ''
 
     let projectName = initialProjectName
 
@@ -36,17 +37,19 @@ export async function cmdInit(args, FACTORY_VERSION, ROOT) {
 
     // 2. 选择预设栈
     if (!preset) {
+        log.info('正在载入项目底座预设库...')
+        const presets = [
+            { name: 'Vue3 + Element-Plus (后台管理系统 - 推荐)', value: 'vue3-element-admin' },
+            { name: 'React + Ant-Design (后台管理系统)', value: 'react-antd-admin' },
+            { name: 'Vue3 + Vant (移动端 H5)', value: 'vue3-vant-h5' },
+            { name: '自定义模板 (NPM / Git)', value: 'custom' }
+        ]
         const { selectedPreset } = await inquirer.prompt([
             {
                 type: 'list',
                 name: 'selectedPreset',
                 message: '请选择项目基础预设栈 (Presets):',
-                choices: [
-                    { name: 'Vue3 + Element-Plus (后台管理系统 - 推荐)', value: 'vue3-element-admin' },
-                    { name: 'React + Ant-Design (后台管理系统)', value: 'react-antd-admin' },
-                    { name: 'Vue3 + Vant (移动端 H5)', value: 'vue3-vant-h5' },
-                    { name: '自定义模板 (NPM / Git)', value: 'custom' }
-                ]
+                choices: presets
             }
         ])
         preset = selectedPreset

@@ -28,9 +28,9 @@ export const EXIT_CODES = {
 import { log, printBanner, c } from './utils/logger.js'
 
 // ─── Command: init ────────────────────────────────────────────────────────────
-async function cmdInit(initialProjectName) {
+async function cmdInit(args = []) {
   const { cmdInit: _cmdInit } = await import('./commands/init.js')
-  await _cmdInit(initialProjectName, FACTORY_VERSION, ROOT)
+  await _cmdInit(args, FACTORY_VERSION, ROOT)
 }
 
 // ─── Command: generate ────────────────────────────────────────────────────────
@@ -374,7 +374,7 @@ switch (command) {
         const { projectName } = await inquirer.prompt([
           { type: 'input', name: 'projectName', message: '请输入新项目的名称:' }
         ]);
-        await cmdInit(projectName);
+        await cmdInit([projectName]);
       } else if (action === 'sync') {
         const { url } = await inquirer.prompt([
           { type: 'input', name: 'url', message: '请输入 Swagger JSON 地址:' }
