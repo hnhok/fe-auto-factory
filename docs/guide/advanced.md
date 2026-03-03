@@ -15,43 +15,40 @@
 
 - **preset**: 决定了执行 `generate` 命令时，工厂会调起哪一个渲染驱动进行代码拼装。
 
-## 2. 接入自定义模板项目 (Remote Repo)
+## 2. 编写与接入渲染驱动插件 (Driver Plugin)
 
-如果你需要接入团队内部的私有模板：
+渲染驱动决定了 Schema 如何转化为具体的 `.vue` 或 `.tsx` 视图资产组合。
 
-1. **托管仓库**：将你的脚手架骨架（包含完整的 Vite/Webpack 配置、基础 `App.vue`、`router` 结构等）托管至 Git。
-2. **注册模板**：在工厂源码的 `scripts/factory.js` 中，找到 `TEMPLATE_REPOS` 变量，添加你的映射：
-   ```javascript
-   const TEMPLATE_REPOS = {
-     'my-custom-framework': 'https://github.com/your-org/my-template.git'
-   }
-   ```
-3. **完成介入**：此后执行 `init` 时，菜单中将出现你的自定义选项，引擎会自动处理 Clone 与 Git 剥离。
+从 `v2.10.1` 抛弃了硬编码后，你拥有极度自由的驱动编写路径：
 
-## 3. 编写渲染驱动 (Driver)
+1. **同构私有插件**：在当前根目录创建 `.factory/drivers/driver-[你的preset名字].js`
+2. **NPM 插件包分发**：以 `@your-corp/fe-factory-plugin-[preset]` 发布到私有镜像。
 
-渲染驱动决定了 Schema 如何转化为具体的 `.vue` 或 `.tsx` 文件。
+只要提供下面的一致性入口即可触发：
 
-1. 在 `scripts/generators/` 下新建 `driver-my-custom-framework.js`。
-2. 实现 `generatePage` 导出函数。
-3. **推荐做法**：继承并复用 `base.js` 中的通用能力。
+## 3. 利用 SDK 原子能拼装大模型
+
+对于插件包编写：我们向外抛出了 `scripts/sdk/index.js`，包含强大的基础 AST 合并算法，避免你从头去写重复的代码分析生成：
 
 ```javascript
-import * as base from './base.js'
+import { generateApiFile, updateRouterSafely } from '@hnhok/fe-auto-factory/sdk'
 
-export async function generatePage(params) {
-  const { page_id, title, layout, api_endpoints, camel, kebab } = params
-  const cwd = process.cwd()
-  const config = base.getFactoryConfig(cwd)
+export default {
+    name: 'custom-driver-react',
+    templatesDir: './your/package/templates', // 放置你的 EJS 核心
+    async onGenerate(params) {
+      const { page_id, api_endpoints, kebab } = params
+      const cwd = process.cwd()
 
-  // 1. 编写你特有的 UI 渲染逻辑
-  // ...写入文件...
+      // 1. 可以结合 EJS 渲染 UI 代码
+      // ...
 
-  // 2. 调用 Base 自动完成 API/Store/Test 的生成
-  base.generateApiFile({ cwd, config, page_id, api_endpoints, kebab })
-  
-  // 3. 调用 AST 辅助工具安全注入路由
-  await base.updateRouterSafely({ cwd, page_id, kebab })
+      // 2. 调用 SDK Base 自动落盘 API/Store/Test 等
+      await generateApiFile({ cwd, ...params })
+      
+      // 3. 调用 AST 安全增补到主路由
+      await updateRouterSafely({ cwd, page_id, kebab })
+    }
 }
 ```
 
