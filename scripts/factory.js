@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
-const FACTORY_VERSION = '2.10.1'
+const FACTORY_VERSION = '3.3.0'
 
 import { log, printBanner, c } from './utils/logger.js'
 

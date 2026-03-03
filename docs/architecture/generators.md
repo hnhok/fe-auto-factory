@@ -1,6 +1,6 @@
 # 多端渲染矩阵与生成引擎 (Generators)
 
-`fe-auto-factory`自 `v2.10.1` 起，升级为 **Micro-Kernel (微内核)** 与 **npm Plugin** 星状解耦架构。不再采用硬编码架构与预发驱动挂载，而是通过可动态 import 的插件机制进行端能力的分发。
+`fe-auto-factory`自 `v3.3.0` 起，升级为 **Micro-Kernel (微内核)** 与 **npm Plugin** 星状解耦架构。不再采用硬编码架构与预发驱动挂载，而是通过可动态 import 的插件机制进行端能力的分发。
 
 ## 1. 模板资产的物理隔离 (EJS 体系)
 

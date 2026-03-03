@@ -1,6 +1,6 @@
 # 微内核架构解析 (Micro-Kernel Architecture)
 
-本规范描述了 FE-Auto-Factory (自 `v2.10.1` 版本起) 所采用的开放式/可插拔内核模型。
+本规范描述了 FE-Auto-Factory (自 `v3.3.0` 版本起) 所采用的开放式/可插拔内核模型。
 
 ## 目录与物理组织
 * **内核入口**: `scripts/factory.js` 

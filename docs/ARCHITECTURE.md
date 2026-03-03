@@ -85,8 +85,8 @@ factory generate ──►  src/views/ProductList/index.vue        (UI 布局)
 | `skills/02-development/` | 代码生成规范、最佳实践 | factory generate 命令 |
 | `skills/03-testing/` | 测试策略、E2E 规范 | factory test 命令 |
 | `skills/04-deployment/` | CI/CD 流程、监控配置 | GitHub Actions |
-| `scripts/factory.js` | 主 CLI 微内核入口 (v2.10+) | 开发者命令行 |
-| `scripts/commands/` | 独立命令模块 (v2.10+) | CLI 分发 |
+| `scripts/factory.js` | 主 CLI 微内核入口 (v3.3.0+) | 开发者命令行 |
+| `scripts/commands/` | 独立命令模块 (v3.3.0+) | CLI 分发 |
 | `scripts/generators/` | 多端适配器及引擎沙箱驱 | factory generate 命令 |
 | `scripts/sdk/` | 第三方 NPM 插件使用的原子 SDK | Plugins |
 | `scripts/utils/schema.js` | Schema 解析与 $ref 处理 | factory generate 命令 |

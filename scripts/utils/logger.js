@@ -18,7 +18,7 @@ export const log = {
     gray: (msg) => console.log(`${c.gray}  ${msg}${c.reset}`),
 }
 
-export function printBanner(version = '2.10.0') {
+export function printBanner(version = '3.3.0') {
     console.log(`${c.cyan}${c.bold}`)
     console.log('╔══════════════════════════════════════════╗')
     console.log('║        🏭  FE-Auto-Factory  v' + version.padEnd(12) + '║')
