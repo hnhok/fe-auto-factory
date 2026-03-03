@@ -12,7 +12,18 @@ import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
-const FACTORY_VERSION = '3.3.0'
+
+// ─── 版本号统一从 package.json 读取（单一来源，避免多处手工维护）───────────
+const { version: FACTORY_VERSION } = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf-8'))
+
+// ─── 结构化退出码（供 CI 系统区分错误类型）───────────────────────────────────
+export const EXIT_CODES = {
+  OK: 0,
+  GENERIC_ERROR: 1,
+  SCHEMA_INVALID: 2,   // Schema 格式错误（可自动修复）
+  DRIVER_NOT_FOUND: 3, // 驱动缺失，需要安装插件
+  DRIVER_CRASH: 4,     // 驱动执行时崩溃，需要人工介入
+}
 
 import { log, printBanner, c } from './utils/logger.js'
 

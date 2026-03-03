@@ -1,3 +1,11 @@
+import { readFileSync } from 'fs'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const _pkg = JSON.parse(readFileSync(resolve(__dirname, '../../package.json'), 'utf-8'))
+const CURRENT_VERSION = _pkg.version
+
 const c = {
     reset: '\x1b[0m',
     bold: '\x1b[1m',
@@ -18,7 +26,7 @@ export const log = {
     gray: (msg) => console.log(`${c.gray}  ${msg}${c.reset}`),
 }
 
-export function printBanner(version = '3.3.0') {
+export function printBanner(version = CURRENT_VERSION) {
     console.log(`${c.cyan}${c.bold}`)
     console.log('╔══════════════════════════════════════════╗')
     console.log('║        🏭  FE-Auto-Factory  v' + version.padEnd(12) + '║')

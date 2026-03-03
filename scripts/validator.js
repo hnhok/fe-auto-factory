@@ -1,86 +1,67 @@
 /**
- * FE-Auto-Factory Schema 校验器
- * 验证 Page Schema YAML 文件的合规性
+ * FE-Auto-Factory Schema 校验器 (v2 - 重构版)
+ * 变更:
+ *   - [P0] 改用与 generate.js 相同的 parseFrontmatter (js-yaml) 解析器，消除静默 bug
+ *   - [P1] 组件白名单从外部 schemas/component-whitelist.json 加载，支持多预设
+ *   - [P1] 支持在 .factory/config.json 中声明自定义扩展组件列表
  */
 import { readdirSync, readFileSync, existsSync } from 'fs'
 import { resolve, join } from 'path'
+import { parseFrontmatter } from './utils/schema.js'
 
-// 合法的 Vant 组件白名单（部分）
-const VANT_COMPONENTS = [
-    'VanNavBar', 'VanButton', 'VanField', 'VanForm', 'VanCell', 'VanCellGroup',
-    'VanList', 'VanPullRefresh', 'VanTab', 'VanTabs', 'VanTag', 'VanBadge',
-    'VanSwipe', 'VanSwipeItem', 'VanImage', 'VanIcon', 'VanDivider',
-    'VanPopup', 'VanDialog', 'VanActionSheet', 'VanDropdownMenu', 'VanDropdownItem',
-    'VanPicker', 'VanDatePicker', 'VanTimePicker', 'VanCalendar',
-    'VanCheckbox', 'VanRadio', 'VanSwitch', 'VanStepper', 'VanSlider',
-    'VanUploader', 'VanSearch', 'VanSkeleton', 'VanLoading', 'VanEmpty',
-    'VanToast', 'VanNotify', 'VanGrid', 'VanGridItem', 'VanSteps',
-    // 业务自定义组件（统一规范：前缀自定义）
-    'DataTable', 'StatusBadge', 'ActionBar', 'FilterPanel', 'DetailCard',
-    'PageHeader', 'EmptyState', 'ErrorState',
-]
+// ─── 加载组件白名单（外部 JSON + 用户自定义追加）────────────────────────────
+function loadComponentWhitelist(cwd = process.cwd()) {
+    const builtInPath = resolve(cwd, 'schemas', 'component-whitelist.json')
+    const factoryConfigPath = join(cwd, '.factory', 'config.json')
 
-// 合法的布局类型
-const VALID_LAYOUTS = ['blank', 'dashboard', 'tabbar', 'fullscreen']
+    let whitelist = new Set()
 
-/**
- * 解析 YAML Frontmatter（简化解析，不依赖外部库）
- */
-function parseFrontmatter(content) {
-    const match = content.match(/^---\n([\s\S]*?)\n---/)
-    if (!match) return null
-
-    const yaml = match[1]
-    const result = {}
-
-    let currentKey = null
-    let inArray = false
-
-    for (const line of yaml.split('\n')) {
-        // 数组项
-        if (line.match(/^\s+-\s+/)) {
-            const value = line.replace(/^\s+-\s+/, '').trim()
-            if (currentKey && Array.isArray(result[currentKey])) {
-                result[currentKey].push(value)
-            }
-            continue
-        }
-
-        const colonIdx = line.indexOf(':')
-        if (colonIdx === -1) continue
-
-        const key = line.slice(0, colonIdx).trim()
-        const raw = line.slice(colonIdx + 1).trim()
-        currentKey = key
-
-        if (raw === '' || raw === '[]') {
-            result[key] = raw === '[]' ? [] : []
-        } else if (raw.startsWith('[')) {
-            // 行内数组
-            result[key] = raw.slice(1, -1)
-                .split(',')
-                .map(s => s.trim().replace(/^['"]|['"]$/g, ''))
-                .filter(Boolean)
-        } else {
-            result[key] = raw.replace(/^['"]|['"]$/g, '')
+    // 1. 加载内置白名单
+    if (existsSync(builtInPath)) {
+        try {
+            const data = JSON.parse(readFileSync(builtInPath, 'utf-8'))
+            // 合并所有框架的组件
+            Object.values(data).flat().forEach(c => whitelist.add(c))
+        } catch (e) {
+            console.warn('[validator] 无法加载组件白名单文件，将跳过组件合规检查')
         }
     }
 
-    return result
+    // 2. 加载用户在 .factory/config.json 中自定义追加的组件
+    if (existsSync(factoryConfigPath)) {
+        try {
+            const config = JSON.parse(readFileSync(factoryConfigPath, 'utf-8'))
+            const customComps = config.customComponents || []
+            customComps.forEach(c => whitelist.add(c))
+        } catch (e) { /* ignore */ }
+    }
+
+    return whitelist
 }
+
+// ─── 根据 preset 获取对应的组件前缀，以便做更精准的警告提示 ─────────────────
+function getPresetComponentPrefix(preset = 'vue3-vant-h5') {
+    if (preset.includes('element')) return 'El'
+    if (preset.includes('antd') || preset.includes('react')) return 'Ant'
+    return 'Van'
+}
+
+// 合法的布局类型（与 page.schema.json 保持同步）
+const VALID_LAYOUTS = ['blank', 'dashboard', 'tabbar', 'fullscreen', 'admin']
 
 /**
  * 校验单个 Schema 文件
  */
-function validateSchema(filePath) {
+function validateSchema(filePath, whitelist, factoryConfig = {}) {
     const errors = []
     const warnings = []
 
     const content = readFileSync(filePath, 'utf-8')
+    // [P0] 使用工业级 js-yaml 解析器，而非手工解析
     const schema = parseFrontmatter(content)
 
-    if (!schema) {
-        errors.push(`[${filePath}] 缺少 YAML Frontmatter (--- ... ---)`)
+    if (!schema || typeof schema !== 'object' || Object.keys(schema).length === 0) {
+        errors.push(`[${filePath}] 缺少有效的 YAML Frontmatter (--- ... ---)，或内容为空`)
         return { errors, warnings, passed: false }
     }
 
@@ -105,11 +86,12 @@ function validateSchema(filePath) {
         errors.push(`layout 值无效: "${schema.layout}"，合法值: ${VALID_LAYOUTS.join(' | ')}`)
     }
 
-    // ─── 组件合规校验 ───────────────────────────────────
-    if (Array.isArray(schema.components)) {
+    // ─── 组件合规校验（使用外部白名单，支持多预设） ──────
+    if (Array.isArray(schema.components) && whitelist.size > 0) {
+        const prefix = getPresetComponentPrefix(factoryConfig.preset)
         for (const comp of schema.components) {
-            if (!VANT_COMPONENTS.includes(comp)) {
-                warnings.push(`组件 "${comp}" 不在组件白名单中，请确认是否需要新增自定义组件`)
+            if (!whitelist.has(comp)) {
+                warnings.push(`组件 "${comp}" 不在组件白名单中 (预设: ${factoryConfig.preset || 'vue3-vant-h5'})，请确认是否需要在 .factory/config.json 的 customComponents 中注册`)
             }
         }
     }
@@ -132,6 +114,11 @@ function validateSchema(filePath) {
         }
     }
 
+    // ─── models 结构校验（简单检测是否为对象而非空字符串）──
+    if (schema.models !== undefined && typeof schema.models !== 'object') {
+        errors.push('models 字段必须是一个对象（如 models: { OrderItem: { id: number } }）')
+    }
+
     return {
         errors: errors.map(e => `  ❌ [${schema.page_id || '?'}] ${e}`),
         warnings: warnings.map(w => `  ⚠️  [${schema.page_id || '?'}] ${w}`),
@@ -143,7 +130,8 @@ function validateSchema(filePath) {
  * 校验所有 Schema 文件
  */
 export async function validateAll() {
-    const schemasDir = resolve(process.cwd(), 'schemas', 'pages')
+    const cwd = process.cwd()
+    const schemasDir = resolve(cwd, 'schemas', 'pages')
 
     if (!existsSync(schemasDir)) {
         return { passed: true, count: 0, errors: [], warnings: [] }
@@ -155,11 +143,19 @@ export async function validateAll() {
         return { passed: true, count: 0, errors: [], warnings: [] }
     }
 
+    // 一次性加载白名单和工厂配置（避免对每个文件重复 I/O）
+    const whitelist = loadComponentWhitelist(cwd)
+    let factoryConfig = {}
+    const configPath = join(cwd, '.factory', 'config.json')
+    if (existsSync(configPath)) {
+        try { factoryConfig = JSON.parse(readFileSync(configPath, 'utf-8')) } catch (e) { }
+    }
+
     const allErrors = []
     const allWarnings = []
 
     for (const file of files) {
-        const result = validateSchema(join(schemasDir, file))
+        const result = validateSchema(join(schemasDir, file), whitelist, factoryConfig)
         allErrors.push(...result.errors)
         allWarnings.push(...result.warnings)
         if (result.warnings.length > 0) {

@@ -1,6 +1,6 @@
 {
     "name": "@hnhok/fe-auto-factory",
-    "version": "3.3.0",
+    "version": "3.4.0",
     "description": "🏭 前端自动化工厂 - Schema驱动的全生命周期前端工程化体系",
     "type": "module",
     "repository": {
@@ -32,6 +32,9 @@
         "factory:validate": "node scripts/factory.js validate",
         "factory:test": "node scripts/factory.js test",
         "factory:report": "node scripts/factory.js report",
+        "factory:doctor": "node scripts/factory.js doctor",
+        "factory:vision": "node scripts/factory.js vision",
+        "factory:snapshot:list": "node scripts/factory.js vision snapshot list",
         "docs:dev": "vitepress dev docs",
         "docs:build": "vitepress build docs"
     },

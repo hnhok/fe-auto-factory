@@ -10,6 +10,13 @@ import { createHash } from 'crypto'
 const SNAPSHOT_DIR_NAME = join('.factory', 'snapshots')
 
 /**
+ * 快照格式版本号—升级此常量时必须建立对应的 migrate 逻辑
+ * v1: 初始格式（image_hash, schema, yaml_text)
+ * v2: 待扩展
+ */
+const SNAPSHOT_FORMAT_VERSION = '1'
+
+/**
  * 获取当前项目的快照目录，不存在则自动创建
  */
 export function getSnapshotDir(cwd = process.cwd()) {
@@ -47,6 +54,7 @@ export function saveSnapshot({ imagePath, yamlText, schema, cwd = process.cwd(),
     const filepath = join(dir, filename)
 
     const snapshot = {
+        _version: SNAPSHOT_FORMAT_VERSION,    // 格式版本号，便于未来升级时进行 migrate
         id: filename.replace('.json', ''),
         page_id: pageId,
         title: schema.title || '',
@@ -70,7 +78,12 @@ export function listSnapshots(cwd = process.cwd()) {
     const files = readdirSync(dir).filter(f => f.endsWith('.json'))
     return files.map(f => {
         try {
-            return JSON.parse(readFileSync(join(dir, f), 'utf-8'))
+            const snap = JSON.parse(readFileSync(join(dir, f), 'utf-8'))
+            // 备向兼容迁移: 旧格式 (v0, 无 _version 字段) 自动补齐
+            if (!snap._version) {
+                snap._version = '1'   // 按 v1 处理
+            }
+            return snap
         } catch {
             return null
         }

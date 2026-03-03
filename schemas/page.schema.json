@@ -108,9 +108,28 @@
         "search_bar": {
           "type": "boolean",
           "default": false
+        },
+        "export_csv": {
+          "type": "boolean",
+          "default": false
+        },
+        "batch_delete": {
+          "type": "boolean",
+          "default": false
+        },
+        "inline_edit": {
+          "type": "boolean",
+          "default": false
+        },
+        "track_clicks": {
+          "type": "boolean",
+          "default": false
         }
       },
-      "description": "页面增强特性开关"
+      "additionalProperties": {
+        "type": "boolean"
+      },
+      "description": "页面增强特性开关，支持任意自定义布尔 Feature Flag"
     },
     "models": {
       "type": "object",
@@ -132,5 +151,6 @@
       "default": "1.0"
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "_version": "3.4.0"
 }
