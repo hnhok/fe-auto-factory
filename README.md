@@ -19,8 +19,10 @@ fe-auto-factory/
 │   ├── service/               # API Service 模板
 │   └── store/                 # Pinia Store 模板
 ├── scripts/                   # 工厂 CLI 脚本
-│   ├── factory.js             # 主 CLI 入口 (v2.7)
-│   ├── generators/            # 驱动适配器 (Vant/Element/React)
+│   ├── factory.js             # 主 CLI 微内核入口 (v2.10+)
+│   ├── commands/              # 独立命令模块 (generate, init 等)
+│   ├── sdk/                   # 面向 npm 插件的 SDK 基建
+│   ├── generators/            # 驱动沙箱
 │   │   ├── base.js            # 通用生成基类
 │   │   └── driver-*.js        # 多端适配逻辑
 │   └── utils/                 # Schema & 字符串解析工具
@@ -42,8 +44,10 @@ fe-auto-factory/
 │   └── deploy.md              # 部署工作流
 └── docs/
     ├── ARCHITECTURE.md        # 架构详解
-    ├── SKILL-GUIDE.md         # Skill 使用指南
-    └── CHANGELOG.md           # 变更日志
+    ├── architecture/
+    │   └── micro-kernel.md    # 微内核架构解析 (v2.10+)
+    └── SKILL-GUIDE.md         # Skill 使用指南
+├── CHANGELOG.md               # 变更日志
 ```
 
 ---
