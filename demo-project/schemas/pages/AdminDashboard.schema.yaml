@@ -9,7 +9,7 @@ components:
   - VanGrid
   - VanGridItem
 state:
-  - stats: object
+  - "stats: any"
 track:
   - admin-dashboard-view
 version: "1.0"

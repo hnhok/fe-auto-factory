@@ -1,0 +1,28 @@
+---
+page_id: "OrderAuto"
+title: "[机器生成] Order 页面"
+layout: "blank"
+route: "/order-auto"
+api_endpoints:
+  - "getOrderList"
+  - "queryOrderDetail"
+components:
+  - "VanButton"
+  - "VanCellGroup"
+  - "VanCell"
+  - "VanList"
+state:
+  - "keyword: string"
+track:
+  - "order-view"
+models:
+  Order:
+    id: "number"
+    petId: "number"
+    quantity: "number"
+    shipDate: "string"
+    status: "string"
+    complete: "boolean"
+
+version: "1.0"
+---

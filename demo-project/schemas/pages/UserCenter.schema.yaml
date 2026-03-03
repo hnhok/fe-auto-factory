@@ -9,8 +9,10 @@ components:
   - VanButton
   - VanCellGroup
   - VanCell
+  - VanList
 state:
-  - userInfo: object
+  - "userInfo: any"
+  - "orderCount: number"
 track:
   - user-center-view
 version: "1.0"

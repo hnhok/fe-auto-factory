@@ -21,6 +21,10 @@
     "bin": {
         "fe-factory": "./scripts/factory.js"
     },
+    "exports": {
+        ".": "./scripts/factory.js",
+        "./sdk": "./scripts/sdk/index.js"
+    },
     "scripts": {
         "factory": "node scripts/factory.js",
         "factory:init": "node scripts/factory.js init",

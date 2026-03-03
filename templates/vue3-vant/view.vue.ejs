@@ -1,0 +1,68 @@
+<template>
+  <div class="<%= kebab %>-page" data-page-id="<%= page_id %>">
+    <van-nav-bar :title="'<%= title %>'" left-arrow @click-left="router.back()" />
+    
+    <div class="content">
+      <% if (features.pagination) { %>
+      <van-list
+        v-model:loading="loading"
+        :finished="state.finished"
+        finished-text="没有更多了"
+        @load="onLoad"
+      >
+      <% } %>
+      <% if (features.pull_to_refresh) { %>
+      <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
+      <% } %>
+      
+      <div v-for="item in state.list" :key="item.id" class="list-item">
+          <%- itemContent %>
+      </div>
+
+      <% if (features.pull_to_refresh) { %>
+      </van-pull-refresh>
+      <% } %>
+      <% if (features.pagination) { %>
+      </van-list>
+      <% } %>
+
+      <!-- [FACTORY-CUSTOM-START] -->
+      <%- customUI || '<!-- 这里可以编写您的自定义业务 UI (保留区) -->' %>
+      <!-- [FACTORY-CUSTOM-END] -->
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { use<%= page_id %> } from './hooks/use<%= page_id %>'
+
+const router = useRouter()
+const refreshing = ref(false)
+const { loading, error, state, refresh, loadMore } = use<%= page_id %>()
+
+// [FACTORY-SCRIPT-START]
+<%- customScript || '// 在此处编写您的自定义业务逻辑 (保留区)' %>
+// [FACTORY-SCRIPT-END]
+
+const onRefresh = async () => {
+  await refresh()
+  refreshing.value = false
+}
+
+const onLoad = () => {
+  loadMore()
+}
+</script>
+
+<style scoped>
+.content { padding: 16px; }
+.list-item { 
+  background: #fff; 
+  padding: 12px; 
+  margin-bottom: 12px; 
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+</style>

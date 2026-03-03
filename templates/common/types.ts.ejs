@@ -1,0 +1,14 @@
+/**
+* <%= page_id %> 自动生成的类型定义
+    * [FACTORY-GENERATED] 基于 Schema Models
+    */
+
+    <% for (const [name, fields] of Object.entries(models)) { %>
+        <% if (typeof fields==='string' ) continue %>
+            export interface I<%= name %> {
+                <% for (const [fName, fType] of Object.entries(fields)) { %>
+                    <%= fName %>: <%- fType %>
+                            <% } %>
+                                }
+
+                                <% } %>

@@ -1,0 +1,21 @@
+/**
+* <%= page_id %> Mock 镜像
+    * [FACTORY-GENERATED] 基于 Smart Mocking v2.8
+    */
+    import { defineMock } from 'vite-plugin-mock'
+
+    export default defineMock([
+    {
+    url: '/api/<%= kebab %>/list',
+        method: 'get',
+        response: () => {
+        return {
+        code: 0,
+        data: Array(10).fill(null).map((_, i) => ({
+        <%- JSON.stringify(firstModelMock, null, 10).replace(/^{|}$/g, '' ).trim() %>
+            })),
+            message: 'ok'
+            }
+            }
+            }
+            ])

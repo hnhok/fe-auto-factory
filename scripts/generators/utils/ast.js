@@ -156,3 +156,104 @@ export function extractSection(content, startTag, endTag) {
     }
     return null
 }
+
+/**
+ * [v3.0.0] Smart Patching for TS/Hook files
+ * 方法级别的热插拔: 自动比对已有函数并增量合并修改 (取代简单的块级正则保留)
+ */
+export function smartPatchHook(filePath, newContent, hookName) {
+    if (!existsSync(filePath)) {
+        writeFileSync(filePath, newContent, 'utf-8')
+        return true
+    }
+
+    const project = new Project()
+    const existingFile = project.addSourceFileAtPath(filePath)
+    const newFile = project.createSourceFile('temp_new.ts', newContent)
+
+    // 1. 合并 Imports (避免覆盖已有的其他 imports)
+    newFile.getImportDeclarations().forEach(newImp => {
+        const mod = newImp.getModuleSpecifierValue()
+        const existImp = existingFile.getImportDeclaration(mod)
+        if (!existImp) {
+            existingFile.addImportDeclaration(newImp.getStructure())
+        } else {
+            newImp.getNamedImports().forEach(named => {
+                const nameStr = named.getName()
+                if (!existImp.getNamedImports().some(n => n.getName() === nameStr)) {
+                    existImp.addNamedImport({ name: nameStr })
+                }
+            })
+        }
+    })
+
+    // 2. 找到对应的 Hook 主函数
+    const existFunc = existingFile.getFunction(hookName)
+    const newFunc = newFile.getFunction(hookName)
+
+    if (existFunc && newFunc) {
+        // 2.1 增量合并响应式 State (比如因为 Schema 新增了 field 需要注入新的 state 属性)
+        const existStateVar = existFunc.getVariableDeclaration('state')
+        const newStateVar = newFunc.getVariableDeclaration('state')
+
+        if (existStateVar && newStateVar) {
+            const existStateObj = existStateVar.getInitializerIfKind(SyntaxKind.CallExpression)
+                ?.getArguments()[0]?.asKind(SyntaxKind.ObjectLiteralExpression)
+            const newStateObj = newStateVar.getInitializerIfKind(SyntaxKind.CallExpression)
+                ?.getArguments()[0]?.asKind(SyntaxKind.ObjectLiteralExpression)
+
+            if (existStateObj && newStateObj) {
+                newStateObj.getProperties().forEach(prop => {
+                    if (prop.getKind() === SyntaxKind.PropertyAssignment) {
+                        const propName = prop.getName()
+                        if (!existStateObj.getProperty(propName)) {
+                            existStateObj.addPropertyAssignment({ name: propName, initializer: prop.getInitializer()?.getText() || 'undefined' })
+                            console.log(`    ✔ [AST Patch] State 属性智能注入: ${propName}`)
+                        }
+                    }
+                })
+            }
+        }
+
+        // 2.2 合并内部方法 (如果存在新的 fetch 请求等，且目标不存在，则合并)
+        // 注意，使用 Variable 声明处理 (因为 Vue3 hook 常写成 const func = () => {})
+        const newVars = newFunc.getVariableDeclarations()
+        newVars.forEach(v => {
+            const vName = v.getName()
+            // 如果旧代码没有这个方法或变量(排除系统级别变量 like loading, error)
+            if (!existFunc.getVariableDeclaration(vName)) {
+                const stmt = v.getVariableStatement()
+                if (stmt && vName !== 'state' && vName !== 'loading' && vName !== 'error') {
+                    existFunc.insertStatements(existFunc.getStatements().length - 1, stmt.getText())
+                    console.log(`    ✔ [AST Patch] 方法智能注入: ${vName}`)
+                }
+            }
+        })
+
+        // 2.3 自动合并 Return Statement 以暴露新方法
+        const existReturn = existFunc.getStatements().find(s => s.getKind() === SyntaxKind.ReturnStatement)
+        const newReturn = newFunc.getStatements().find(s => s.getKind() === SyntaxKind.ReturnStatement)
+
+        if (existReturn && newReturn) {
+            const existRetObj = existReturn.getExpressionIfKind(SyntaxKind.ObjectLiteralExpression)
+            const newRetObj = newReturn.getExpressionIfKind(SyntaxKind.ObjectLiteralExpression)
+
+            if (existRetObj && newRetObj) {
+                newRetObj.getProperties().forEach(prop => {
+                    const propName = prop.getName()
+                    if (!existRetObj.getProperty(propName)) {
+                        existRetObj.addShorthandPropertyAssignment({ name: propName })
+                        console.log(`    ✔ [AST Patch] 暴露方法导出: ${propName}`)
+                    }
+                })
+            }
+        }
+
+        existingFile.saveSync()
+        return true
+    }
+
+    // 如果找不到指定的 Hook 函数块，可能已经被彻底重写，安全起见退回保留区块方式或不操作
+    console.log(`    ⚠ [AST Patch] 未匹配到标准结构，已通过旧有机制合并。`)
+    return false
+}

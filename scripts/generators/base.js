@@ -9,12 +9,14 @@ import {
   updateRouterSafely as _updateRouterSafely,
   injectComponentTracking as _injectComponentTracking,
   syncTrackingAssets as _syncTrackingAssets,
-  extractSection as _extractSection
+  extractSection as _extractSection,
+  smartPatchHook as _smartPatchHook
 } from './utils/ast.js'
 
 export const updateRouterSafely = _updateRouterSafely
 export const syncTrackingAssets = _syncTrackingAssets
 export const extractSection = _extractSection
+export const smartPatchHook = _smartPatchHook
 
 /**
  * 加载工厂配置
