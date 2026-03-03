@@ -210,6 +210,15 @@ async function cmdDoctor() {
 }
 
 /**
+ * ─── Command: list ───────────────────────────────────────────────────────────
+ * 列出所有已生成的页面及覆盖率状态
+ */
+async function cmdList(args) {
+  const { cmdList: _cmdList } = await import('./commands/list.js')
+  await _cmdList(args, process.cwd())
+}
+
+/**
  * 加载全局公用模型池 (.factory/models/*.yaml)
  */
 function loadGlobalModels(cwd) {
@@ -290,6 +299,7 @@ switch (command) {
   case 'update': await cmdUpdate(); break
   case 'ui': await cmdUI(rest); break
   case 'vision': await cmdVision(rest); break
+  case 'list': await cmdList(rest); break
   case '--version':
   case '-v':
     console.log(`FE-Auto-Factory v${FACTORY_VERSION}`)
@@ -305,6 +315,7 @@ switch (command) {
           message: '请选择你要执行的操作:',
           choices: [
             { name: '🌟 生成新页面', value: 'generate' },
+            { name: '📋 查看生成清单 (工厂覆盖率)', value: 'list' },
             { name: '📸 从设计稿直接生成 (AI 视觉 + 快照复用)', value: 'vision' },
             { name: '📚 查看历史快照库', value: 'snapshot-list' },
             { name: '📦 初始化新项目', value: 'init' },
@@ -355,6 +366,8 @@ switch (command) {
       } else if (action === 'snapshot-list') {
         const { cmdSnapshotList } = await import('./vision.js');
         cmdSnapshotList();
+      } else if (action === 'list') {
+        await cmdList([]);
       } else if (action === 'doctor') {
         await cmdDoctor();
       } else if (action === 'init') {
@@ -381,6 +394,7 @@ switch (command) {
       console.log(`  ${c.cyan}test${c.reset} [--e2e|--unit|--all]     运行自动化测试`)
       console.log(`  ${c.cyan}report${c.reset} [--week]                生成 AI 分析周报`)
       console.log(`  ${c.cyan}sync${c.reset} --swagger <url>           同步 Swagger 接口并生成 TS 类型`)
+      console.log(`  ${c.cyan}list${c.reset} [--show-missing]          列出已生成页面及工厂覆盖率`)
       console.log('')
     }
 }

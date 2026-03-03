@@ -30,72 +30,105 @@ export async function syncSwagger(url) {
         console.log(`✅ 成功生成 TypeScript 类型！共计 ${count} 个定义。`)
         console.log(`  输出文件: src/api/types.ts`)
 
-        // [v3.1.0] Swagger -> Schema 逆向工程
+        // [v3.4.0] Swagger -> Schema 批量逆向工程（不再只取一个实体）
         generateSchemaFromSwagger(schemas, cwd)
     } catch (err) {
         console.error('❌ 同步 Swagger 失败:', err.message)
+        process.exit(1)
     }
 }
 
 /**
- * 智能逆向推导: 抽取核心业务模型，反向生成 Page Schema 图纸
+ * 批量逆向推导：为每一个真实业务实体生成独立的 Page Schema 图纸
+ * v3.4.0 重构：批量处理所有非泛型业务类型（旧版只取第一个 Entity）
  */
 function generateSchemaFromSwagger(schemas, cwd) {
     const keys = Object.keys(schemas)
     if (keys.length === 0) return
 
-    // 智能选取一个具备代表性的实体 (包含了 User/Product/Order/Item 等，或首个实体)
-    const targetKey = keys.find(k => /user|product|order|item|record/i.test(k)) || keys[0]
-
-    // 剔除泛型符号，如 BaseResponse«User» -> User
-    let cleanKey = targetKey.replace(/[^a-zA-Z0-9]/g, '')
-    // 兜底大驼峰
-    cleanKey = cleanKey.charAt(0).toUpperCase() + cleanKey.slice(1)
-
-    const kebab = cleanKey.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase()
-
-    const schemaObj = schemas[targetKey]
-    let modelFields = ''
-    if (schemaObj.properties) {
-        for (const [pName, pDef] of Object.entries(schemaObj.properties)) {
-            // 将 Swagger 的类型简化为前端类型 (剔除数组修饰，保留基本推断)
-            const type = mapType(pDef).replace('[]', '')
-            modelFields += `    ${pName}: "${type}"\n`
-        }
-    }
-
-    const yamlContent = `---
-page_id: "${cleanKey}Auto"
-title: "[机器生成] ${cleanKey} 页面"
-layout: "blank"
-route: "/${kebab}-auto"
-api_endpoints:
-  - "get${cleanKey}List"
-  - "query${cleanKey}Detail"
-components:
-  - "VanButton"
-  - "VanCellGroup"
-  - "VanCell"
-  - "VanList"
-state:
-  - "keyword: string"
-track:
-  - "${kebab}-view"
-models:
-  ${cleanKey}:
-${modelFields || '    id: "number"'}
-version: "1.0"
----
-`
-
     const schemaDir = join(cwd, 'schemas', 'pages')
     if (!existsSync(schemaDir)) mkdirSync(schemaDir, { recursive: true })
 
-    const schemaPath = join(schemaDir, `${cleanKey}Auto.schema.yaml`)
-    writeFileSync(schemaPath, yamlContent, 'utf-8')
-    console.log(`\n🎉 [Smart Reverse] API 驱动 -> 逆向页面推导完成！`)
-    console.log(`  工厂基于 "${targetKey}" 实体智能分析了结构，并为您生成了高可用图纸:`)
-    console.log(`  📎 schemas/pages/${cleanKey}Auto.schema.yaml`)
+    // 过滤掉泛型包装类型（不生成 Schema 的包装器）
+    const GENERIC_WRAPPERS = /^(BaseResponse|PageInfo|Result|ApiResult|CommonResult|Resp|Response|Page|IPage|Wrapper)/i
+    const businessEntities = keys.filter(k => !GENERIC_WRAPPERS.test(k))
+
+    if (businessEntities.length === 0) {
+        console.log('  ⚠️  未发现符合规范的业务实体（均为泛型包装类），跳过 Schema 生成')
+        return
+    }
+
+    let generatedCount = 0
+    const generatedFiles = []
+
+    for (const entityKey of businessEntities) {
+        const schemaObj = schemas[entityKey]
+
+        // 剔除泛型符号，如 User«List» → User
+        let cleanKey = entityKey.replace(/[«»<>]/g, '').replace(/[^a-zA-Z0-9]/g, '')
+        cleanKey = cleanKey.charAt(0).toUpperCase() + cleanKey.slice(1)
+
+        const kebab = cleanKey.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()
+        const schemaPath = join(schemaDir, `${cleanKey}.schema.yaml`)
+
+        // 若文件已存在，不覆盖（防止误伤开发者已编辑的图纸）
+        if (existsSync(schemaPath)) {
+            console.log(`  ⏭️  已存在，跳过: schemas/pages/${cleanKey}.schema.yaml`)
+            continue
+        }
+
+        // 从 Swagger 属性推导 models 字段（过滤列表包装字段）
+        let modelFieldLines = ''
+        const propNames = Object.keys(schemaObj.properties || {})
+        for (const pName of propNames) {
+            if (/^(list|items|records|data|content|rows)$/i.test(pName)) continue
+            const type = mapType(schemaObj.properties[pName]).replace('[]', '')
+            modelFieldLines += `    ${pName}: "${type}"\n`
+        }
+
+        // 推断常用的 CRUD api_endpoints
+        const apiEndpoints = [`get${cleanKey}List`, `get${cleanKey}Detail`]
+        if (/status|state/i.test(propNames.join(','))) {
+            apiEndpoints.push(`update${cleanKey}Status`)
+        }
+
+        const yamlContent = [
+            '---',
+            `page_id: "${cleanKey}"`,
+            `title: "【Swagger 反向生成】${cleanKey}"`,
+            'layout: "blank"',
+            `route: "/${kebab}"`,
+            'api_endpoints:',
+            ...apiEndpoints.map(a => `  - "${a}"`),
+            'components:',
+            '  - "VanList"',
+            '  - "VanCell"',
+            '  - "VanEmpty"',
+            'features:',
+            '  pagination: true',
+            '  search_bar: false',
+            'state:',
+            '  keyword: string',
+            'models:',
+            `  ${cleanKey}:`,
+            modelFieldLines || '    id: "number"',
+            'track:',
+            `  - "${kebab}-view"`,
+            'version: "1.0"',
+            '---',
+            ''
+        ].join('\n')
+
+        writeFileSync(schemaPath, yamlContent, 'utf-8')
+        generatedFiles.push(`schemas/pages/${cleanKey}.schema.yaml`)
+        generatedCount++
+    }
+
+    console.log(`\n🎉 [Swagger 反向工程] 共生成 ${generatedCount} / ${businessEntities.length} 个实体的 Schema:`)
+    generatedFiles.forEach(f => console.log(`  📎 ${f}`))
+    if (generatedCount < businessEntities.length) {
+        console.log(`  ⏭️  已存在的 schema 不会被覆盖，如需重新生成请手动删除对应文件。`)
+    }
 }
 
 function fetchJson(url) {
@@ -110,7 +143,6 @@ function fetchJson(url) {
             return
         }
 
-        // 网络请求
         const client = url.startsWith('https') ? https : http
         client.get(url, (res) => {
             let body = ''
@@ -119,7 +151,7 @@ function fetchJson(url) {
                 try {
                     resolve(JSON.parse(body))
                 } catch (e) {
-                    reject(new Error('JSON 解析失败'))
+                    reject(new Error('JSON 解析失败，请确认接口返回的是合法 JSON'))
                 }
             })
         }).on('error', reject)

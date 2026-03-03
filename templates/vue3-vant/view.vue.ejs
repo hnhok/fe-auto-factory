@@ -1,68 +1,139 @@
 <template>
   <div class="<%= kebab %>-page" data-page-id="<%= page_id %>">
     <van-nav-bar :title="'<%= title %>'" left-arrow @click-left="router.back()" />
-    
-    <div class="content">
-      <% if (features.pagination) { %>
-      <van-list
-        v-model:loading="loading"
-        :finished="state.finished"
-        finished-text="没有更多了"
-        @load="onLoad"
-      >
-      <% } %>
-      <% if (features.pull_to_refresh) { %>
-      <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
-      <% } %>
-      
-      <div v-for="item in state.list" :key="item.id" class="list-item">
-          <%- itemContent %>
-      </div>
 
-      <% if (features.pull_to_refresh) { %>
-      </van-pull-refresh>
-      <% } %>
-      <% if (features.pagination) { %>
-      </van-list>
-      <% } %>
+    <!-- 骨架屏：首次加载时显示 -->
+    <template v-if="loading && !state.list.length">
+      <van-skeleton v-for="i in 3" :key="i" class="skeleton-item" :row="3" />
+    </template>
 
-      <!-- [FACTORY-CUSTOM-START] -->
-      <%- customUI || '<!-- 这里可以编写您的自定义业务 UI (保留区) -->' %>
-      <!-- [FACTORY-CUSTOM-END] -->
+    <!-- 错误态 -->
+    <div v-else-if="error" class="state-wrapper">
+      <van-empty image="error" :description="error">
+        <van-button round type="primary" class="retry-btn" data-track-id="<%= kebab %>-error-retry" @click="refresh">
+          重新加载
+        </van-button>
+      </van-empty>
     </div>
+
+    <!-- 正常内容区 -->
+    <template v-else>
+      <% if (features && features.search_bar) { %>
+        <!-- 搜索栏 -->
+        <van-search v-model="searchKeyword" placeholder="请输入关键词" show-action @search="onSearch"
+          @cancel="onSearchClear" />
+        <% } %>
+
+          <% if (features && features.pull_to_refresh) { %>
+            <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
+              <% } %>
+
+                <% if (features && features.pagination) { %>
+                  <van-list v-model:loading="loading" :finished="state.finished" finished-text="没有更多了" @load="onLoad">
+                    <% } %>
+
+                      <!-- 空态：列表为空且加载完成时 -->
+                      <van-empty v-if="!loading && !state.list.length" description="暂无数据" />
+
+                      <!-- 列表内容 -->
+                      <template v-else>
+                        <div v-for="item in state.list" :key="item.id" class="list-item">
+                          <%- itemContent || '<!-- TODO: 在此渲染列表项内容 -->' %>
+                        </div>
+                      </template>
+
+                      <% if (features && features.pagination) { %>
+                  </van-list>
+                  <% } %>
+
+                    <% if (features && features.pull_to_refresh) { %>
+            </van-pull-refresh>
+            <% } %>
+
+              <!-- 自定义 UI 保留区 -->
+              <!-- [FACTORY-CUSTOM-START] -->
+              <%- customUI || '<!-- 在此编写自定义 UI -->' %>
+                <!-- [FACTORY-CUSTOM-END] -->
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { use<%= page_id %> } from './hooks/use<%= page_id %>'
+  import { ref } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { use<%= page_id %> } from './hooks/use<%= page_id %>'
 
-const router = useRouter()
-const refreshing = ref(false)
-const { loading, error, state, refresh, loadMore } = use<%= page_id %>()
+  const router = useRouter()
+  const refreshing = ref(false)
+    <% if (features && features.search_bar) { %>
+const searchKeyword = ref('')
+        <% } %>
+const { loading, error, state, refresh, loadMore } = use <%= page_id %> ()
+
+    <% if (features && features.pull_to_refresh) { %>
+const onRefresh = async () => {
+        await refresh()
+        refreshing.value = false
+      }
+<% } %>
+
+<% if (features && features.pagination) { %>
+const onLoad = () => {
+      loadMore()
+    }
+<% } %>
+
+<% if (features && features.search_bar) { %>
+const onSearch = () => {
+      // TODO: 调用带 keyword 参数的搜索逻辑
+      refresh()
+    }
+    const onSearchClear = () => {
+      searchKeyword.value = ''
+      refresh()
+    }
+<% } %>
 
 // [FACTORY-SCRIPT-START]
-<%- customScript || '// 在此处编写您的自定义业务逻辑 (保留区)' %>
-// [FACTORY-SCRIPT-END]
-
-const onRefresh = async () => {
-  await refresh()
-  refreshing.value = false
-}
-
-const onLoad = () => {
-  loadMore()
-}
+<% - customScript || '// 在此处编写自定义业务逻辑 (保留区)' %>
+  // [FACTORY-SCRIPT-END]
 </script>
 
 <style scoped>
-.content { padding: 16px; }
-.list-item { 
-  background: #fff; 
-  padding: 12px; 
-  margin-bottom: 12px; 
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
+  .<%=kebab %>-page {
+    min-height: 100vh;
+    background: #f5f5f5;
+  }
+
+  .skeleton-item {
+    margin: 12px 16px;
+    padding: 16px;
+    background: #fff;
+    border-radius: 8px;
+  }
+
+  .state-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+  }
+
+  .retry-btn {
+    width: 120px;
+    margin-top: 8px;
+  }
+
+  .list-item {
+    background: #fff;
+    padding: 12px 16px;
+    margin: 0 12px 12px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transition: box-shadow 0.2s;
+  }
+
+  .list-item:active {
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  }
 </style>

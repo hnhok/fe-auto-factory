@@ -11,49 +11,64 @@
                             const loading = ref(false)
                             const error = ref<string | null>(null)
                                 const state = reactive({
-                                <%- stateProps.join(',\n') %>
-                                    })
+                                list: [] as any[],
+                                page: 1,
+                                pageSize: 10,
+                                total: 0,
+                                finished: false,
+                                <%- stateProps.join(',\n ') %>
+  })
 
-                                    // [FACTORY-HOOK-CUSTOM-START]
-                                    <%- customHookLogic
-                                        || '// 在此处编写您的自定义 Hook 逻辑 (保留区)\\n  const myCustomFunc = () => {}' %>
-                                        // [FACTORY-HOOK-CUSTOM-END]
+  // [FACTORY-HOOK-CUSTOM-START]
+  <%- customHookLogic || ' // 在此处编写您的自定义 Hook 逻辑 (保留区)\n // const myCustomFunc=()=> {}' %>
+                                    // [FACTORY-HOOK-CUSTOM-END]
 
-                                        const refresh = async () => {
-                                        state.page = 1
-                                        state.finished = false
-                                        state.list = []
-                                        await fetchData()
-                                        }
+                                    const fetchData = async () => {
+                                    if (loading.value) return
+                                    loading.value = true
+                                    error.value = null
+                                    try {
+                                    <% if (primaryApi) { %>
+                                        const res = await <%= primaryApi %>({ page: state.page, pageSize: state.pageSize
+                                            }) as any
+                                            const newList: any[] = res?.data?.list ?? res?.data ?? res ?? []
+                                            const total: number = res?.data?.total ?? newList.length
+                                            state.list = state.page === 1 ? newList : [...state.list, ...newList]
+                                            state.total = total
+                                            state.finished = state.list.length >= total || newList.length <
+                                                state.pageSize <% } else { %>
+                                                // 无 API 端点，请手动填写数据获取逻辑
+                                                state.finished = true
+                                                <% } %>
+                                                    } catch (e: any) {
+                                                    error.value = e?.message ?? '请求失败，请稍后重试'
+                                                    showToast({ message: error.value, type: 'fail' })
+                                                    } finally {
+                                                    loading.value = false
+                                                    }
+                                                    }
 
-                                        const loadMore = async () => {
-                                        if (state.finished) return
-                                        state.page++
-                                        await fetchData()
-                                        }
+                                                    const refresh = async () => {
+                                                    state.page = 1
+                                                    state.finished = false
+                                                    state.list = []
+                                                    await fetchData()
+                                                    }
 
-                                        const fetchData = async () => {
-                                        loading.value = true
-                                        try {
-                                        <% if (primaryApi) { %>
-                                            const res = await <%= primaryApi %>({ page: state.page }) as any
-                                                const newList = res?.data ?? res
-                                                state.list = [...state.list, ...newList]
-                                                if (newList.length < 10) state.finished=true <% } else { %>
-                                                    // NO-API
-                                                    state.finished = true
-                                                    <% } %>
-                                                        } catch (e: any) {
-                                                        error.value = e.message
-                                                        showToast(e.message)
-                                                        } finally {
-                                                        loading.value = false
-                                                        }
-                                                        }
+                                                    const loadMore = async () => {
+                                                    if (state.finished || loading.value) return
+                                                    state.page++
+                                                    await fetchData()
+                                                    }
 
-                                                        onMounted(() => {
-                                                        if (!<%= features.pagination ? 'true' : 'false' %>) fetchData()
-                                                            })
+                                                    onMounted(() => {
+                                                    <% if (features && features.pagination) { %>
+                                                        // 分页模式：由 VanList @load 事件驱动，onMounted 不触发
+                                                        <% } else { %>
+                                                            fetchData()
+                                                            <% } %>
+                                                                })
 
-                                                            return { loading, error, state, refresh, loadMore }
-                                                            }
+                                                                return { loading, error, state, refresh, loadMore,
+                                                                fetchData }
+                                                                }

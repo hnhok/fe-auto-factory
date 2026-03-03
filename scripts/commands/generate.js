@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { resolve, join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { toKebabCase, toCamelCase } from '../utils/string.js'
@@ -16,6 +16,7 @@ export async function cmdGenerate(args, loadGlobalModels, __dirname) {
     printBanner()
     const schemaFlag = args.indexOf('--schema')
     const schemaFile = schemaFlag !== -1 ? args[schemaFlag + 1] : null
+    const isDryRun = args.includes('--dry-run') || args.includes('--dry')
 
     if (!schemaFile) {
         log.error('请提供 Schema 文件。用法: factory generate --schema <path>')
@@ -139,7 +140,8 @@ export async function cmdGenerate(args, loadGlobalModels, __dirname) {
         // ─── 执行生成 ───────────────────────────────────────────
         const generateParams = {
             page_id, title, layout, api_endpoints, components, track, features, state,
-            models: pageModels, globalModels, camel, kebab
+            models: pageModels, globalModels, camel, kebab,
+            dryRun: isDryRun,  // 传递给驱动，让驱动层决定是否真正写盘
         }
 
         if (generator.default?.onGenerate) {
@@ -180,12 +182,65 @@ export async function cmdGenerate(args, loadGlobalModels, __dirname) {
     }
 
     log.success(`代码生成完成！`)
+
+    // ─── Dry Run 模式：只打印预期输出，不写盘 ──────────────────────────────
+    if (isDryRun) {
+        log.warn('👁️  [DRY RUN] 以下文件将会被生成（未写入磁盘）:')
+        const expectedFiles = [
+            `src/views/${page_id}/index.vue`,
+            `src/views/${page_id}/hooks/use${page_id}.ts`,
+            `src/api/${kebab}.ts`,
+            `src/api/types/${kebab}.ts`,
+            `src/store/${kebab}.ts`,
+            `mock/${kebab}.mock.ts`,
+            `tests/e2e/${kebab}.spec.ts`,
+        ]
+        for (const f of expectedFiles) {
+            const exists = existsSync(join(projectRoot, f))
+            log.gray(`  ${exists ? '♻️  已存在: ' + f : '✚  将创建: ' + f}`)
+        }
+        log.info('运行时去掉 --dry-run 以真正写入文件。')
+        return
+    }
+
+    // ─── 成功写入后：更新生成清单文件 ─────────────────────────────────────
+    _updateGeneratedManifest(projectRoot, page_id, kebab, schemaFile)
+
     log.gray(`生成文件:`)
     log.gray(`  src/views/${page_id}/index.vue`)
     log.gray(`  src/views/${page_id}/hooks/use${page_id}.ts`)
-    log.gray(`    src/api/${kebab}.ts
-    src/api/types/${kebab}.ts
-    src/store/${kebab}.ts
-    mock/${kebab}.mock.ts
-    tests/e2e/${kebab}.spec.ts`)
+    log.gray(`  src/api/${kebab}.ts  |  src/api/types/${kebab}.ts`)
+    log.gray(`  src/store/${kebab}.ts  |  mock/${kebab}.mock.ts`)
+    log.gray(`  tests/e2e/${kebab}.spec.ts`)
 }
+
+/**
+ * 更新生成清单文件 (.factory/generated-files.json)
+ * 记录每次生成的页面、时间、Schema 路径，使得工厂覆盖率可统计
+ */
+function _updateGeneratedManifest(projectRoot, page_id, kebab, schemaFile) {
+    try {
+        const manifestPath = join(projectRoot, '.factory', 'generated-files.json')
+        let manifest = { _version: '1', generated: [], lastUpdated: '' }
+        if (existsSync(manifestPath)) {
+            try { manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) } catch { }
+        }
+        manifest.generated = (manifest.generated || []).filter(e => e.page_id !== page_id)
+        manifest.generated.push({
+            page_id, kebab, schema: schemaFile,
+            files: [
+                `src/views/${page_id}/index.vue`,
+                `src/views/${page_id}/hooks/use${page_id}.ts`,
+                `src/api/${kebab}.ts`,
+                `src/api/types/${kebab}.ts`,
+                `src/store/${kebab}.ts`,
+            ],
+            generatedAt: new Date().toISOString(),
+        })
+        manifest.lastUpdated = new Date().toISOString()
+        const factoryDir = join(projectRoot, '.factory')
+        if (!existsSync(factoryDir)) mkdirSync(factoryDir, { recursive: true })
+        writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8')
+    } catch { /* 清单写入失败不影响主流程 */ }
+}
+

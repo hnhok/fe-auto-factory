@@ -31,6 +31,7 @@ npx fe-factory generate --schema <path_to_yaml>
 | 参数 | 说明 |
 |-----|-----|
 | `--schema <path>` | 指向 YAML 图纸文件路径（必填）|
+| `--dry-run` | **(v3.4.0 新增)** 预览模式。只打印预期产出的文件清单，不真正写盘 |
 
 **执行流程：**
 1. Ajv 校验 YAML 格式（异常退出码 `2`，而非通用 `1`）
@@ -89,6 +90,21 @@ npx fe-factory sync --swagger <api_docs_url> [--extract <module>]
 | `--swagger <url>` | 后端 OpenAPI 3.0/2.0 JSON 地址 |
 | `--extract <module>` | 指定业务分类（如 `Auth`、`OrderCenter`），直接生成 Schema 草图 |
 
+**(v3.4.0 更新)**：`sync` 现支持 **批量逆向工程**。默认会自动识别 Swagger 中所有的业务实体（非泛型包装类），并为每个实体在 `schemas/pages/` 下生成独立的 Schema 图纸草稿。
+
+---
+
+## 5. 📋 资产清单与覆盖率
+
+```bash
+npx fe-factory list [--show-missing]
+```
+
+**功能 (v3.4.0 新增)：**
+- **可视化覆盖率**：通过进度条展示当前项目 Schema 驱动代码的比例。
+- **页面审计**：列出所有已生成页面的 ID、路由、生成时间及 Schema 来源。
+- **孤儿 Schema 检测**：带上 `--show-missing` 可快速找出定义了图纸但尚未落地的页面。
+
 ---
 
 ## 5. 🏥 环境健康检查
@@ -136,6 +152,7 @@ DEBUG=fe-factory:* npx fe-factory generate --schema xxx
 ```bash
 npm run factory                 # 交互式菜单
 npm run factory:generate        # 生成
+npm run factory:list            # 查看资产清单 (Coverage)
 npm run factory:validate        # 验证
 npm run factory:doctor          # 诊断
 npm run factory:vision          # 视觉识别

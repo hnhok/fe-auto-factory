@@ -33,6 +33,7 @@
         "factory:test": "node scripts/factory.js test",
         "factory:report": "node scripts/factory.js report",
         "factory:doctor": "node scripts/factory.js doctor",
+        "factory:list": "node scripts/factory.js list",
         "factory:vision": "node scripts/factory.js vision",
         "factory:snapshot:list": "node scripts/factory.js vision snapshot list",
         "docs:dev": "vitepress dev docs",

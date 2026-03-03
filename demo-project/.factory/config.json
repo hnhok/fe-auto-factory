@@ -1,15 +1,18 @@
 {
   "projectName": "demo-project",
+  "preset": "vue3-vant-h5",
   "createdAt": "2026-02-28T08:09:11.750Z",
-  "factoryVersion": "2.0.0",
+  "factoryVersion": "3.4.0",
   "skills": [
     "01-requirements",
     "02-development",
     "03-testing",
-    "04-deployment"
+    "04-deployment",
+    "05-component-reuse",
+    "06-vision-snapshot"
   ],
+  "customComponents": [],
   "schema": {
-    "pagesDir": "schemas/pages",
-    "templatesDir": "../fe-auto-factory/templates"
+    "pagesDir": "schemas/pages"
   }
 }

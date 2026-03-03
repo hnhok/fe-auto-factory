@@ -32,32 +32,43 @@ models:
     id: number
     name: string
     isVip: boolean
-    # 也支持局部嵌套模型
-    address:
-      city: string
-      zipcode: string
-      
-  # 也可以直接引用全局位于 .factory/models/ 下的模型，极大地减少冗余
-  $ref: '#/definitions/BaseResponse' 
+    role: string
+    # 嵌套引用：引擎会识别 $ref: 前缀，自动替换为 IAddress 接口名
+    address: "$ref: Address"
 
-# 🔌 API 注射槽 (Hooks)
-# 这些会被自动下沉为真实的 Service 调用、TS 类型包，并与上面的模型耦合，提供给你的 `useUserManagement.ts` Hook。
+  Address:
+    city: string
+    province: string
+    zipcode: string
+
+# 🔌 API 注射槽
+# 这些会被自动下沉为真实的 Service 调用，与上面的模型耦合
 api_endpoints:
   - getUserList
   - deleteUserById
   - updateUserStatus
 
-# 🧩 页面内挂载的组件（如果有剥离开的组件也可以在这里标定挂载关系）
+# 🧩 页面内挂载的组件
+# 组件名若已存在于项目中，generate 时会自动复用并注入正确 import 路径
 components:
   - UserStatusTag
   - SearchPanelForm
 
-# 🧭 额外状态 (Pinia & Reactivity)
-# 可选。除了自动生成的列表项，还可以指定页面内你需要的其他核心状态变量。
+# 🧭 额外状态 (Vue reactive state)
+# 格式：字段名: 类型（string / number / boolean / any / object）
+# ⚠️ 请使用对象格式，而非字符串数组
 state:
   currentCategory: string
+  filterStatus: string
   isActionLoading: boolean
-  
+
+# 💡 特性开关 (v3.4.0: 支持任意自定义布尔 Flag)
+features:
+  pagination: true        # 启用 VanList 分页加载更多
+  search_bar: true        # 顶部搜索框
+  pull_to_refresh: false  # 下拉刷新
+  export_csv: false       # 导出 CSV 按钮
+
 ```
 
 ## Schema 运行机制与产出清单
