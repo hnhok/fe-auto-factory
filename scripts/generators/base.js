@@ -12,6 +12,7 @@ import {
   extractSection as _extractSection,
   smartPatchHook as _smartPatchHook
 } from './utils/ast.js'
+import { buildComponentRegistry, classifyComponents } from '../snapshot/component-registry.js'
 
 export const updateRouterSafely = _updateRouterSafely
 export const syncTrackingAssets = _syncTrackingAssets
@@ -274,20 +275,34 @@ test.describe('${page_id} — ${title}', () => {
 }
 
 /**
- * 生成原子化业务组件脚手架
+ * 生成原子化业务组件脚手架（带全局组件复用检测）
+ * @returns {{ reused: string[], generated: string[] }} 复用和新建列表
  */
 export function generateComponentScaffolds({ cwd, config, page_id, components }) {
   const viewDir = join(cwd, config.viewsDir, page_id, 'components')
   mkdirSync(viewDir, { recursive: true })
 
-  const libPrefixes = ['Van', 'El', 'Ant', 'Base']
+  // 构建全项目组件注册表
+  const registry = buildComponentRegistry(cwd, config.viewsDir)
+  const { existing, toGenerate } = classifyComponents(
+    components,
+    join(cwd, config.viewsDir, page_id, 'components'),
+    registry
+  )
 
-  components.forEach(name => {
-    const isLib = libPrefixes.some(p => name.startsWith(p))
-    if (!isLib) {
-      const componentFile = join(viewDir, `${name}.vue`)
-      if (!existsSync(componentFile)) {
-        const content = `<template>
+  // 输出复用提示
+  if (existing.length) {
+    console.log(`  ℹ️  组件复用检测：以下组件已在项目中存在，跳过生成：`)
+    for (const { name, importPath } of existing) {
+      console.log(`     ♻️  ${name}  →  ${importPath}`)
+    }
+  }
+
+  // 仅对真正新增的组件进行脚手架生成
+  for (const name of toGenerate) {
+    const componentFile = join(viewDir, `${name}.vue`)
+    if (!existsSync(componentFile)) {
+      const content = `<template>
   <div class="c-${toKebabCase(name)}">
     <!-- [FACTORY-SCAFFOLD] 原子组件: ${name} -->
     <slot />
@@ -303,9 +318,11 @@ export function generateComponentScaffolds({ cwd, config, page_id, components })
 <style scoped>
 </style>
 `
-        writeFileSync(componentFile, content, 'utf-8')
-        console.log(`    ✔ Component Scoped: ${page_id}/components/${name}.vue`)
-      }
+      writeFileSync(componentFile, content, 'utf-8')
+      console.log(`    ✔ Component New: ${page_id}/components/${name}.vue`)
     }
-  })
+  }
+
+  // 返回分类结果，供上层驱动（如：进一步将 existing 中的复用路径注入运行时模板）使用
+  return { reused: existing, generated: toGenerate }
 }

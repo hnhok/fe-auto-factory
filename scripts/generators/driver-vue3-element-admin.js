@@ -24,18 +24,23 @@ export async function generatePage(params) {
   const cwd = process.cwd()
   const config = base.getFactoryConfig(cwd)
 
-  // 1. 生成渲染驱动特有的逻辑 (UI 层)
-  await generateViewFile({ cwd, config, page_id, title, layout, camel, kebab, models, features })
-  await generateHookFile({ cwd, config, page_id, title, api_endpoints, camel, kebab, models, features, state })
+  // ── 1. 组件复用检测（先于视图渲染，获取可复用的 import 路径）──────────
+  const { reused, generated } = base.generateComponentScaffolds({
+    cwd, config, page_id, components: params.components || []
+  })
+  const enrichedParams = { ...params, cwd, config, reusedComponents: reused }
 
-  // 2. 多端通用资产基建
+  // ── 2. 生成渲染驱动特有的逻辑 (UI 层，携带复用组件信息) ──────────────
+  await generateViewFile({ ...enrichedParams, title, layout, camel, kebab, models, features })
+  await generateHookFile({ ...enrichedParams, title, api_endpoints, camel, kebab, models, features, state })
+
+  // ── 3. 多端通用资产基建 ───────────────────────────────────────────────
   base.generateTypesFile({ cwd, config, page_id, kebab, models })
   base.generateApiFile({ cwd, config, page_id, api_endpoints, kebab, models })
   base.generateStoreFile({ cwd, config, page_id, camel, kebab, models, features, state })
   base.generateMockFile({ cwd, page_id, kebab, models })
   base.generateTestFile({ cwd, config, page_id, title, api_endpoints, kebab, framework: 'element-plus' })
 
-  base.generateComponentScaffolds({ cwd, config, page_id, components: params.components || [] })
   base.syncTrackingAssets({ cwd, track: params.track || [] })
 
   await base.updateRouterSafely({ cwd, page_id, kebab, meta: { title } })

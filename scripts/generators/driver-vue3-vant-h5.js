@@ -30,21 +30,28 @@ export default {
       const { page_id } = params
       const config = params.config || base.getFactoryConfig(cwd)
 
-      // 复用通用的模板引擎渲染 (现在通过 params 获取上文)
-      await generateViewFile({ ...params, cwd, config, templatesDir })
-      await generateHookFile({ ...params, cwd, config, templatesDir })
+      // ── 1. 组件复用检测（必须在视图渲染前完成，以便注入正确 import）──────
+      const { reused, generated } = base.generateComponentScaffolds({
+        cwd, config, components: params.components || [], ...params
+      })
 
-      // 多端通用资产基建调用 (直接调用 SDK 方法)
+      // 将复用信息合并进 params，供 EJS 模板使用（reusedComponents: [{ name, importPath }]）
+      const enrichedParams = { ...params, cwd, config, templatesDir, reusedComponents: reused }
+
+      // ── 2. 视图与 Hook 渲染（注入了复用组件信息）────────────────────────
+      await generateViewFile(enrichedParams)
+      await generateHookFile(enrichedParams)
+
+      // ── 3. 多端通用资产基建 ───────────────────────────────────────────────
       base.generateTypesFile({ cwd, config, ...params })
       base.generateApiFile({ cwd, config, ...params })
       base.generateStoreFile({ cwd, config, ...params })
       base.generateMockFile({ cwd, ...params })
       base.generateTestFile({ cwd, config, framework: 'vant', ...params })
 
-      base.generateComponentScaffolds({ cwd, config, components: params.components || [], ...params })
       base.syncTrackingAssets({ cwd, track: params.track || [] })
 
-      // 触发本插件自己的特有注入逻辑
+      // ── 4. AST 路由注入 ───────────────────────────────────────────────────
       await this.patchHooks.injectRouter({ cwd, page_id, kebab: params.kebab, meta: { title: params.title } })
     } catch (e) {
       console.error(e.stack)
