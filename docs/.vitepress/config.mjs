@@ -17,7 +17,10 @@ export default defineConfig({
                     text: '基础与入门',
                     items: [
                         { text: '项目演变与介绍', link: '/guide/introduction' },
-                        { text: '快速上手实战', link: '/guide/getting-started' },
+                        { text: '5 分钟全栈实战 (Tutorial)', link: '/guide/tutorial' },
+                        { text: 'CLI 命令速查小抄', link: '/guide/cli-reference' },
+                        { text: '快速上手落地基建', link: '/guide/getting-started' },
+                        { text: '常见问题与排障 (FAQ)', link: '/guide/faq' },
                         { text: '迭代更新日志 (Changelog)', link: '/guide/changelog' }
                     ]
                 },
