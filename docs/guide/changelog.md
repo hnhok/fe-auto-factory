@@ -8,7 +8,32 @@
 
 这一代是我们对传统生成器认知的**颠覆点**。引擎变成了纯粹的标准控制中心，不再捆绑并写死各个公司特异的技术体系：
 
+### v3.4.0 - (2026-03-03) 🆕
+
+#### 🏗️ 视觉快照沉淀与复用系统
+- 识别图片前先查快照库（MD5 精确命中 → 0 Token；Jaccard 相似度 ≥ 45% → 合并差量）
+- 识别结果自动持久化到 `.factory/snapshots/`，供团队复用
+- 新增命令：`vision snapshot list`、`vision snapshot delete`
+
+#### ♻️ 全项目组件复用检测
+- `generate` 时扫描 `src/components/**` 和 `src/views/*/components/**`
+- 已存在组件：返回正确 `importPath`，跳过文件生成；全新组件：正常生成骨架
+
+#### 🛡️ 代码规范增强
+- 新增 ESLint 规则 `factory-slot-integrity`：确保 `[FACTORY-HOOK-CUSTOM-START/END]` 成对出现
+- 组件白名单外部化至 `schemas/component-whitelist.json`（支持多框架：vant/element-plus/antd）
+
+#### 🔧 工程化改进
+- 版本号统一从 `package.json` 读取，结构化退出码（`2/3/4`），`DEBUG=fe-factory:*` 调试模式
+- `features` Schema 开放自定义布尔 Feature Flag（`additionalProperties: boolean`）
+- 快照格式版本控制（`_version`）+ 旧快照自动迁移
+
+#### 📚 Skills 体系 & Workflow
+- 新增 Skills 05~08（组件复用、视觉快照、代码审查、性能规范）+ `INDEX.md`
+- `/img2code` 工作流升级（快照预检 + 自动入库），新增 `/snapshot-manage` 工作流
+
 ### v3.3.0 - (2026-03-03)
+
 * **核心 (Core):** `scripts/factory.js` 现已彻底拆分为模块化的微内核命令式架构 (`scripts/commands/` 目录)。
   - `generate.js`: 从中心剥离，支持 NPM Plugin 生命周期的动态加载 (`onGenerate`, `beforeGenerate`, `afterGenerate`)。
   - `init.js`, `validate.js`, `test.js`: 命令控制流从原先的 God Object 抽离。

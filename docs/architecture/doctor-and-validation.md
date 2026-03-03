@@ -1,36 +1,108 @@
 # 自动化卫士：校验与质量把控 (Validation & Doctor)
 
-如果一个自动化平台只管“堆代码”，不管“规范性”和“错误修复”，结果肯定是一堆能跑但没法维护的垃圾山。
+在 `FE-Auto-Factory` 中，**代码合法性约束**与代码生成本身同等重要。这不仅依赖后置的 CI，还深植到执行引擎的每个环节中。
 
-在 `FE-Auto-Factory` 我们把 **代码合法性约束** 放在与生成本身一样重要的地位。这不仅仅依赖后置的 CI，还深植到执行引擎 `validate.js` 中。
+---
 
-## 1. 结构化蓝图前置检查 (`ajv`)
+## 1. 结构化蓝图前置检查（Ajv）
 
-引擎在通过 `npx fe-factory generate --schema xxxx` 加载任何文件之前，首先要过一道安检。
-它使用的是强类型工业级 JSON 验证引擎 `Ajv` 对你的 `yaml` 文件进行深度检测。（你可以在你根目录下的 `schemas/page.schema.json` 中审视它）。
+引擎在加载任何 Schema 文件之前，首先通过 **Ajv**（工业级 JSON 验证引擎）进行安检。
 
-- **约束类型**：如果 `page_id` 没有大写驼峰打头？如果 `features` 填了一个不在白名单的名字？
-- **零宽容**：如果有拼写错误，它不会让你把带毒的骨架渲染成数千行带毒的屎山，而是直接挂红退出，精确指出哪一行 `YAML` 配制非法！
+约束规则定义在 `schemas/page.schema.json` 中，覆盖：
 
-## 2. Factory Doctor 悬丝诊脉
+| 字段 | 规则 | 不合规结果 |
+|-----|-----|---------|
+| `page_id` | 必须 PascalCase（如 `OrderList`）| 退出码 `2`，拒绝生成 |
+| `route` | 必须以 `/` 开头 | 退出码 `2` |
+| `api_endpoints` | 必须 camelCase（如 `getOrderList`）| 退出码 `2` |
+| `track` | 必须 kebab-case（如 `order-cancel-click`）| 退出码 `2` |
+| `features` | **v3.4.0**：支持任意布尔 Feature Flag | 合法（开放扩展）|
 
-你的项目随着时间的推移可能经历了各种技术栈魔改、被人私自改了包名或者是弄丢了底层适配器的 `config`。
-敲下：
+```bash
+# 手动执行全量 Schema 校验
+npx fe-factory validate
+```
+
+---
+
+## 2. 组件白名单校验（v3.4.0 重构）
+
+`validate` 命令会对 Schema 中的 `components` 列表进行合规检查，确认组件是否在已知的白名单内。
+
+**v3.4.0 变更**：白名单从代码中的硬编码迁移到独立的 `schemas/component-whitelist.json` 文件，按框架分组：
+
+```json
+{
+  "vant": ["VanButton", "VanCell", "VanForm", "..."],
+  "element-plus": ["ElButton", "ElTable", "ElForm", "..."],
+  "antd": ["Button", "Table", "Form", "..."],
+  "custom": ["DataTable", "StatusBadge", "..."]
+}
+```
+
+**支持自定义追加**：在 `.factory/config.json` 的 `customComponents` 字段添加你的私有组件名，不会触发白名单警告：
+
+```json
+{
+  "preset": "vue3-element-admin",
+  "customComponents": ["CompanyHeader", "GlobalFooter", "BizTable"]
+}
+```
+
+---
+
+## 3. Factory Doctor 悬丝诊脉
+
 ```bash
 npx fe-factory doctor
 ```
 
-它会进行 3 阶段健康查体：
-1. **基础设施探测**：有 `.factory/config.json` 吗？`preset` 指定的驱动插件如 `@my-corp/xxx-plugin` 或者本地化 `drivers/driver-h5.js` 被删除了吗？
-2. **AST 切入点诊断**：如果你要自动挂载路由它发现 `tsconfig.json` 配置的 alias (`@/*`) 丢失，或者它在 `router/index.ts` 里压根找不到可以作为 AST 根节点的 `export const routes = []`。
-3. **环境缺失预警**：它检查你是不是没装必须的前置库。
+进行 3 阶段健康查体：
 
-## 3. 全局统一风格审查 (`fe-factory-rules.js`)
+1. **基础设施探测**
+   - `.factory/config.json` 是否存在？
+   - `preset` 对应的驱动插件是否已安装或存在本地驱动文件？
 
-每次当引擎利用驱动沙盒吐出庞大的 EJS 切片，尤其是那些包含了用户 `[FACTORY-HOOK-CUSTOM-START]` 自写业务逻辑时，代码必然是乱七八糟的（可能制表符和空格混杂）。
+2. **AST 切入点诊断**
+   - `tsconfig.json` 的 `@/` alias 配置是否正确？
+   - `router/index.ts` 中是否存在可作为根节点的 `routes` 数组？
 
-在落地之前，引擎会在内存里或最终物理层运行自定义的 `eslint` 规则引擎（配合 `Prettier` 底座）。
-- 你的变量如果没有用到？
-- 缩进没有与工厂的 2 空格/4 空格对齐？
+3. **环境依赖预警**
+   - 检查是否安装了所有必须的前置库（如 `ajv`、`ejs`、`ts-morph`）
 
-它全部都会自动地对所有 AST 缝补后的产物、新增加的代码执行硬格式化重写。最终您用 `git diff` 看到的那一行行优雅的、仿佛老手经过思考雕琢的代码格式，都是这个自动化校验引擎的功劳。
+---
+
+## 4. 自定义 ESLint 规则集（v3.4.0 增强）
+
+工厂在 `rules/fe-factory-rules.js` 中内置了 6 条生产级自定义规则，可在项目的 `eslint.config.js` 中引入：
+
+```javascript
+import feFactoryRules from '../fe-auto-factory/rules/fe-factory-rules.js'
+```
+
+| 规则 | 说明 | 严重级别 |
+|-----|-----|:-------:|
+| `no-magic-api-url` | 禁止硬编码 API 路径，必须用 Service 函数 | error |
+| `require-data-track-id` | 可交互组件必须有 `data-track-id` | warn |
+| `no-direct-store-mutation` | 禁止直接赋值修改 Pinia store | error |
+| `require-async-error-handling` | API 调用函数必须有 try/catch | warn |
+| `no-console-log-in-production` | 生产代码禁止 console.log（Auto-fix 注释）| warn |
+| `factory-slot-integrity` ⭐ **v3.4.0** | `[FACTORY-HOOK-CUSTOM-START/END]` 必须成对出现 | error |
+
+> **`factory-slot-integrity` 规则**说明：防止开发者手动编辑时无意中删除了 `START` 或 `END` 中的一个边界注释，导致下次 `generate` 时手写业务代码丢失。
+
+---
+
+## 5. 调试模式（v3.4.0 新增）
+
+当生成过程出现问题时，使用 `DEBUG` 环境变量开启详细日志：
+
+```bash
+DEBUG=fe-factory:* npx fe-factory generate --schema schemas/pages/OrderList.schema.yaml
+```
+
+输出内容包含：
+- 驱动加载的详细路径判断
+- Schema 解析后的完整对象
+- 每个文件的具体写入操作
+- 异常时的完整堆栈

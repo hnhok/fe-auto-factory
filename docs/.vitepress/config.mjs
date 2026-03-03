@@ -27,10 +27,10 @@ export default defineConfig({
                 {
                     text: '核心功能与资源',
                     items: [
-                        { text: ' Schema 图纸规范 (Core)', link: '/guide/schema-reference' },
-                        { text: ' 数据类型中台与Mock流转', link: '/guide/data-modeling' },
-                        { text: ' 同步后端 Swagger API', link: '/guide/swagger-to-schema' },
-                        { text: ' 官方云端模板架构矩阵', link: '/guide/templates' }
+                        { text: 'Schema 图纸规范 (Core)', link: '/guide/schema-reference' },
+                        { text: '数据类型中台与 Mock 流转', link: '/guide/data-modeling' },
+                        { text: '同步后端 Swagger API', link: '/guide/swagger-to-schema' },
+                        { text: '官方云端模板架构矩阵', link: '/guide/templates' }
                     ]
                 },
                 {
@@ -45,10 +45,16 @@ export default defineConfig({
                     text: '内核解析',
                     items: [
                         { text: '微内核全景大盘', link: '/architecture/overview' },
-                        { text: 'EJS模板与AST无损热缝合', link: '/architecture/ejs-and-ast' },
+                        { text: 'EJS 模板与 AST 无损热缝合', link: '/architecture/ejs-and-ast' },
                         { text: '防退化测试黑盒保障', link: '/architecture/testing' },
                         { text: '严格校验与质量把控', link: '/architecture/doctor-and-validation' },
                         { text: '开发 NPM 渲染沙箱插件', link: '/architecture/plugin-development' }
+                    ]
+                },
+                {
+                    text: '🆕 v3.4.0 新功能',
+                    items: [
+                        { text: '♻️ 组件复用检测系统', link: '/architecture/component-registry' }
                     ]
                 }
             ],
@@ -58,8 +64,14 @@ export default defineConfig({
                     items: [
                         { text: '从视觉稿直推业务骨架 (Vision)', link: '/workflow/vision-agent' },
                         { text: '无感声明式全局埋点', link: '/workflow/telemetry' },
-                        { text: 'IDE大模型交互体融合', link: '/workflow/agent-integration' },
+                        { text: 'IDE 大模型交互融合', link: '/workflow/agent-integration' },
                         { text: '四大阶段守卫 (Pipeline)', link: '/workflow/skill-system' }
+                    ]
+                },
+                {
+                    text: '🆕 v3.4.0 新功能',
+                    items: [
+                        { text: '📸 视觉快照积累与复用', link: '/workflow/snapshot-store' }
                     ]
                 }
             ]
