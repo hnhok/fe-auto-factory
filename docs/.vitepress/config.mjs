@@ -21,7 +21,8 @@ export default defineConfig({
                         { text: 'CLI 命令速查小抄', link: '/guide/cli-reference' },
                         { text: '快速上手落地基建', link: '/guide/getting-started' },
                         { text: '常见问题与排障 (FAQ)', link: '/guide/faq' },
-                        { text: '迭代更新日志 (Changelog)', link: '/guide/changelog' }
+                        { text: '迭代更新日志 (Changelog)', link: '/guide/changelog' },
+                        { text: '正式发布公告 (v3.4.0)', link: '/releases/v3.4.0' }
                     ]
                 },
                 {
