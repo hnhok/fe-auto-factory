@@ -3,6 +3,17 @@ name: requirements-analysis
 description: >
   阶段1：需求分析 & Schema 驱动设计。将 PRD 文本转化为机器可读的 Page Schema，
   自动识别所需组件、API 端点、权限和状态，生成后续开发阶段所有输入。
+triggers:
+  - "收到 PRD / 口述需求 / Figma 链接时"
+  - "用户描述页面功能能力时"
+  - "计划执行 generate 之前的准备阶段"
+preconditions:
+  - 项目已完成 factory init 初始化
+  - 后端 swagger 接口文档已可访问（如有）
+toolchain:
+  - "schemas/page.schema.json \u2014 Schema 格式 JSON Schema 定义"
+  - "npx fe-factory sync --swagger \u2014 Swagger 反向生成 Schema"
+  - "npx fe-factory doctor \u2014 环境预检"
 ---
 
 # 📋 Skill 01 — 需求分析 & Schema 驱动设计

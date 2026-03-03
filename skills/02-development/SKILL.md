@@ -3,6 +3,18 @@ name: automated-development
 description: >
   阶段2：自动化开发与代码生成。读取 Page Schema，自动生成页面骨架、
   状态管理、API 绑定层，并通过 Pre-commit Hook 实现自动代码修正。
+triggers:
+  - "收到合法 Schema YAML 后，准备生成代码骨架"
+  - "执行 npx fe-factory generate --schema xxx 命令时"
+  - "设计稿识别 (vision) 完成后自动触发"
+preconditions:
+  - 已完成 Skill-01 且 Schema YAML 通过内核 Ajv 校验
+  - 项目根目录存在 .factory/config.json
+toolchain:
+  - "npx fe-factory generate --schema \u2014 主生成命令"
+  - "scripts/generators/base.js \u2014 通用生成基石"
+  - "scripts/snapshot/component-registry.js \u2014 组件复用检测"
+  - "同步花荐 Skill-05 component-reuse"
 ---
 
 # 🔧 Skill 02 — 自动化开发 & 代码生成

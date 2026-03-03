@@ -3,6 +3,18 @@ name: deployment-telemetry
 description: >
   阶段4：上线部署 & 反馈闭环。自动化 CI/CD 流水线、声明式埋点系统、
   线上错误追踪与 AI 周报生成，将上线后数据自动流向下一轮需求池。
+triggers:
+  - "合并到主分支 (main) 时"
+  - "执行 npx fe-factory deploy 命令时"
+  - "Skill-03 全量测试通过后"
+preconditions:
+  - Skill-03 全量测试已通过（E2E + 单元 + Lighthouse）
+  - 生产环境变量（VITE_SENTRY_DSN 等）已配置
+toolchain:
+  - ".github/workflows/ci.yml — CI/CD 流水线配置"
+  - "npx fe-factory report — AI 周报生成"
+  - "Sentry SDK — 线上错误追踪"
+  - "同步花荐 Skill-08 performance-guard"
 ---
 
 # 🚀 Skill 04 — 上线部署 & 反馈闭环

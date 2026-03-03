@@ -3,6 +3,18 @@ name: automated-testing
 description: >
   阶段3：自动化测试 & 质量守卫。基于 PRD User Story 自动生成 E2E 脚本，
   结合 Playwright 视觉回归和 Lighthouse CI 性能基准，构建不可见的测试体系。
+triggers:
+  - "开发完成，准备提交 PR 前"
+  - "执行 npx fe-factory test 命令时"
+  - "CI 流水线自动触发"
+preconditions:
+  - Skill-02 已完成，页面代码骨架已就位
+  - Playwright 已安装，可运行 npx playwright install
+toolchain:
+  - "npx fe-factory test --all/--e2e/--unit — 测试套件"
+  - "Playwright — E2E 手动开发或自动生成"
+  - "Vitest — Hook 单元测试"
+  - "同步花荐 Skill-07 code-review / Skill-08 performance"
 ---
 
 # 🧪 Skill 03 — 自动化测试 & 质量守卫
