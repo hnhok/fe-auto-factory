@@ -22,10 +22,11 @@ export default defineConfig({
                     ]
                 },
                 {
-                    text: '核心功能',
+                    text: '核心功能与资源',
                     items: [
-                        { text: 'Schema 图纸规范 (Core)', link: '/guide/schema-reference' },
-                        { text: '同步后端 Swagger API', link: '/guide/swagger-to-schema' }
+                        { text: ' Schema 图纸规范 (Core)', link: '/guide/schema-reference' },
+                        { text: ' 同步后端 Swagger API', link: '/guide/swagger-to-schema' },
+                        { text: ' 官方云端模板架构矩阵', link: '/guide/templates' }
                     ]
                 },
                 {
