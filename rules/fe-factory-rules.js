@@ -196,5 +196,55 @@ export default {
                 }
             },
         },
+
+        /**
+         * 规则: factory-slot-integrity
+         * 检查 [FACTORY-HOOK-CUSTOM-START] 与 [FACTORY-HOOK-CUSTOM-END] 是否成对出现。
+         * 防止开发者在手动编辑时意外删除了其中一个边界注释，导致下次增量合并时代码丢失。
+         *
+         * ❌ 只有 START 没有 END
+         * ✅ START 和 END 成对出现
+         */
+        'factory-slot-integrity': {
+            meta: {
+                type: 'problem',
+                docs: { description: '[FACTORY-HOOK-CUSTOM-START/END] 注释必须成对出现，防止增量合并时丢失手写代码' },
+                schema: [],
+                messages: {
+                    missingEnd: '发现 [FACTORY-HOOK-CUSTOM-START] 但缺少对应的 [FACTORY-HOOK-CUSTOM-END]，下次 generate 将丢失此段手写代码！',
+                    missingStart: '发现 [FACTORY-HOOK-CUSTOM-END] 但缺少对应的 [FACTORY-HOOK-CUSTOM-START]，插槽结构已损坏',
+                },
+            },
+            create(context) {
+                return {
+                    Program() {
+                        const sourceCode = context.getSourceCode()
+                        const comments = sourceCode.getAllComments()
+
+                        let startCount = 0
+                        let endCount = 0
+                        let firstStart = null
+                        let firstEnd = null
+
+                        for (const comment of comments) {
+                            if (comment.value.includes('FACTORY-HOOK-CUSTOM-START')) {
+                                startCount++
+                                if (!firstStart) firstStart = comment
+                            }
+                            if (comment.value.includes('FACTORY-HOOK-CUSTOM-END')) {
+                                endCount++
+                                if (!firstEnd) firstEnd = comment
+                            }
+                        }
+
+                        if (startCount > endCount && firstStart) {
+                            context.report({ node: firstStart, messageId: 'missingEnd' })
+                        } else if (endCount > startCount && firstEnd) {
+                            context.report({ node: firstEnd, messageId: 'missingStart' })
+                        }
+                    },
+                }
+            },
+        },
     },
 }
