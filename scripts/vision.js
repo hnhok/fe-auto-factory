@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { join, basename } from 'path'
 import { parseFrontmatter } from './utils/schema.js'
+import { Spinner } from './utils/spinner.js'
 import {
     hashImage,
     saveSnapshot,
@@ -33,20 +34,25 @@ export async function cmdImgToCode(imagePath, { force = false, note = '' } = {})
 
     // ── Step 1: 精确匹配（同一张图片已识别过，直接复用）──────────────────────
     if (!force) {
+        const spinner = new Spinner().start('正在本地快照库检索画像匹配...')
         const exact = findByImageHash(imagePath, cwd)
         if (exact) {
-            console.log(`\n⚡ 发现完全相同的图片快照！(${exact.page_id} · ${exact.created_at.split('T')[0]})`)
-            console.log(`   跳过 AI 识别，直接复用历史 Schema：${exact.id}`)
-            console.log(`   提示：如需强制重新识别，请携带 --force 参数\n`)
+            spinner.succeed(`发现完全相同的图片快照！直接复用历史 Schema：${exact.id}`)
             await _generateFromYaml(exact.yaml_text, exact.schema, cwd)
             return
         }
+        spinner.stop()
     }
 
     // ── Step 2: AI 识别图片 → 获取 YAML ──────────────────────────────────────
-    console.log(`🤖 正在联络 AI 视觉大脑分析图片设计稿 [${basename(imagePath)}]...`)
+    const spinner = new Spinner()
+    spinner.start(`🤖 正在联络 AI 视觉大脑分析图片设计稿 [${basename(imagePath)}]...`)
     const yamlText = await _callVisionModel(imagePath, preset)
-    if (!yamlText) return
+    if (!yamlText) {
+        spinner.fail('AI 视觉识别解析失败')
+        return
+    }
+    spinner.succeed('AI 视觉识别完成，已成功解析出页面图纸')
 
     const schema = parseFrontmatter(yamlText)
     if (!schema.page_id) {

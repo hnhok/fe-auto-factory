@@ -8,6 +8,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, cpSync, rmSync, rea
 import { resolve, dirname, join } from 'path'
 import { toKebabCase, toCamelCase } from './utils/string.js'
 import { parseFrontmatter } from './utils/schema.js'
+import { Spinner } from './utils/spinner.js'
 import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -78,7 +79,7 @@ async function cmdVision(args) {
 // ─── Command: report ─────────────────────────────────────────────────────────
 async function cmdReport(args) {
   printBanner()
-  log.step('开始扫描本地代码质量环境并生成 AI 分析周报...')
+  const spinner = new Spinner().start('正在初始化环境分析引擎...')
 
   const { execSync } = await import('child_process')
   const { existsSync } = await import('fs')
@@ -87,7 +88,7 @@ async function cmdReport(args) {
   let tsErrors = 0
 
   try {
-    log.info('🔍 正在提取 ESLint 扫描数据...')
+    spinner.start('🔍 正在提取 ESLint 扫描数据...')
     if (existsSync(join(process.cwd(), 'node_modules', 'eslint', 'bin', 'eslint.js'))) {
       const output = execSync('npx eslint . --ext .js,.cjs,.mjs,.ts,.vue --f json', { cwd: process.cwd(), encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] })
       const results = JSON.parse(output)
@@ -95,8 +96,9 @@ async function cmdReport(args) {
         eslintErrors += r.errorCount || 0
         eslintWarnings += r.warningCount || 0
       })
+      spinner.succeed(`ESLint 扫描完成 (Errors: ${eslintErrors}, Warnings: ${eslintWarnings})`)
     } else {
-      log.warn('项目未安装 ESLint，跳过统计')
+      spinner.info('项目未安装 ESLint，跳过统计')
     }
   } catch (err) {
     if (err.stdout) {
@@ -106,25 +108,34 @@ async function cmdReport(args) {
           eslintErrors += r.errorCount || 0
           eslintWarnings += r.warningCount || 0
         })
-      } catch (e) { }
+        spinner.succeed(`ESLint 扫描完成 (发现潜在问题)`)
+      } catch (e) {
+        spinner.fail('ESLint 解析失败')
+      }
+    } else {
+      spinner.fail('ESLint 执行异常')
     }
   }
 
   try {
-    log.info('🔍 正在提取 TypeScript 类型健康度...')
+    spinner.start('🔍 正在提取 TypeScript 类型健康度...')
     const hasVueTsc = existsSync(join(process.cwd(), 'node_modules', 'vue-tsc', 'bin', 'vue-tsc.js'))
     const hasTsc = existsSync(join(process.cwd(), 'node_modules', 'typescript', 'bin', 'tsc'))
     if (hasVueTsc) {
       execSync('npx vue-tsc --noEmit', { cwd: process.cwd(), stdio: 'ignore' })
+      spinner.succeed('TypeScript 类型检测通过 (vue-tsc)')
     } else if (hasTsc) {
       execSync('npx tsc --noEmit', { cwd: process.cwd(), stdio: 'ignore' })
+      spinner.succeed('TypeScript 类型检测通过 (tsc)')
     } else {
-      log.warn('项目未安装 TS 编译器，跳过统计')
+      spinner.info('项目未安装 TS 编译器，跳过统计')
     }
   } catch (err) {
     tsErrors = err.status || 1
+    spinner.fail('发现 TypeScript 类型编译错误')
   }
 
+  spinner.start('📊 正在计算分析指标并渲染报告...')
   const now = new Date()
   const weekNum = getWeekNumber(now)
   const year = now.getFullYear()
@@ -182,7 +193,7 @@ async function cmdReport(args) {
 *本报告作为下一轮 Skill-01 需求分析的输入*
 `
   writeFileSync(reportPath, reportContent)
-  log.success(`周报已生成: ${reportPath}`)
+  spinner.succeed(`周报生成成功: ${reportPath}`)
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

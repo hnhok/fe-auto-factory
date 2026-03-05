@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, existsSync, cpSync, rmSync, mkdirSync, rea
 import { resolve, join } from 'path'
 import { spawnSync } from 'child_process'
 import { log, printBanner } from '../utils/logger.js'
+import { Spinner } from '../utils/spinner.js'
 
 /**
  * ─── Command: init ───────────────────────────────────────────────────────────
@@ -37,13 +38,15 @@ export async function cmdInit(args, FACTORY_VERSION, ROOT) {
 
     // 2. 选择预设栈
     if (!preset) {
-        log.info('正在载入项目底座预设库...')
+        const loadingSpinner = new Spinner().start('正在智能载入项目底座预设库...')
         const presets = [
             { name: 'Vue3 + Element-Plus (后台管理系统 - 推荐)', value: 'vue3-element-admin' },
             { name: 'React + Ant-Design (后台管理系统)', value: 'react-antd-admin' },
             { name: 'Vue3 + Vant (移动端 H5)', value: 'vue3-vant-h5' },
             { name: '自定义模板 (NPM / Git)', value: 'custom' }
         ]
+        loadingSpinner.stop()
+
         const { selectedPreset } = await inquirer.prompt([
             {
                 type: 'select',
@@ -63,11 +66,11 @@ export async function cmdInit(args, FACTORY_VERSION, ROOT) {
         process.exit(0)
     }
 
-    log.step(`正在初始化新项目: ${projectName} [${preset}]`)
+    const spinner = new Spinner().start(`正在初始化新项目: ${projectName} [${preset}]`)
 
     const dest = join(process.cwd(), projectName)
     if (existsSync(dest)) {
-        log.error(`目录已存在: ${dest}`)
+        spinner.fail(`目录已存在: ${dest}`)
         process.exit(1)
     }
 
@@ -88,14 +91,14 @@ export async function cmdInit(args, FACTORY_VERSION, ROOT) {
     }
 
     if (!finalSrc) {
-        log.error(`找不到预设 [${preset}] 的模板资产。`)
+        spinner.fail(`找不到预设 [${preset}] 的模板资产。`)
         log.gray(`  已探测路径 A (Monorepo): ${monorepoPath} (存在: ${existsSync(monorepoPath)})`)
         log.gray(`  已探测路径 B (Built-in): ${builtInPath} (存在: ${existsSync(builtInPath)})`)
         log.gray('提示：如果是核心开发者，请确保模板目录已就绪并包含 package.json；如果是普通用户，请报告 BUG（可能该预设尚未发布）。')
         process.exit(1)
     }
 
-    log.info(`准备从源拷贝资产: ${finalSrc}`)
+    spinner.start(`从源拷贝资产 [${preset}] 至本地工作区...`)
 
     // 拷贝策略：排除 node_modules, dist, .git
     try {
@@ -106,8 +109,9 @@ export async function cmdInit(args, FACTORY_VERSION, ROOT) {
                 return !isIgnored
             }
         })
+        spinner.succeed(`底层源码拷贝已就绪`)
     } catch (err) {
-        log.error('拷贝过程中出现错误:')
+        spinner.fail('资产拷贝过程中出现错误')
         console.error(err)
         process.exit(1)
     }
@@ -152,7 +156,7 @@ export async function cmdInit(args, FACTORY_VERSION, ROOT) {
     const initLog = `# ${projectName} 变更日志\n\n## [v1.0.0] - ${new Date().toLocaleDateString()}\n- ✅ 由 FE-Auto-Factory 驱动落地\n- 预设底座: ${preset}\n- 引擎版本: v${FACTORY_VERSION}\n`
     writeFileSync(join(docsDir, 'CHANGELOG.md'), initLog, 'utf-8')
 
-    log.success(`项目 "${projectName}" 完美初始化！`)
+    spinner.succeed(`项目 "${projectName}" 完美初始化！`)
     console.log('')
     log.gray(`🚀 开启赋能之路:`)
     log.gray(`  1. cd ${projectName}`)

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url'
 import { toKebabCase, toCamelCase } from '../utils/string.js'
 import { parseFrontmatter } from '../utils/schema.js'
 import { log, printBanner } from '../utils/logger.js'
+import { Spinner } from '../utils/spinner.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -28,14 +29,16 @@ export async function cmdGenerate(args, loadGlobalModels, __dirname) {
         process.exit(1)
     }
 
-    log.step(`读取 Schema: ${schemaFile}`)
+    const spinner = new Spinner()
+    spinner.start(`读取 Schema: ${schemaFile}`)
 
     // 简单 YAML 解析（提取 frontmatter）
     const content = readFileSync(schemaFile, 'utf-8')
     const schema = parseFrontmatter(content)
+    spinner.succeed(`Schema 文件已加载`)
 
     // 引入 Ajv 强校验
-    log.info(`使用 Ajv 校验 Schema 规范...`)
+    spinner.start(`使用 Ajv 校验 Schema 规范...`)
     try {
         const Ajv = (await import('ajv')).default
         const ajv = new Ajv({ strict: false })
@@ -45,15 +48,17 @@ export async function cmdGenerate(args, loadGlobalModels, __dirname) {
             const validate = ajv.compile(schemaDef)
             const valid = validate(schema)
             if (!valid) {
-                log.error('Schema 规范不符，请修复以下错误:')
+                spinner.fail('Schema 规范不符，请修复错误')
                 console.log(JSON.stringify(validate.errors, null, 2))
                 process.exit(2)
             } else {
-                log.success('Schema 校验通过')
+                spinner.succeed('Schema 校验通过')
             }
+        } else {
+            spinner.info('未找到规范校验定义文件，跳过 Ajv 校验')
         }
     } catch (e) {
-        log.warn(`Ajv 校验环节报错或未安装，已跳过强校验: ${e.message}`)
+        spinner.warn(`Ajv 校验环节报错或未安装，已跳过强校验: ${e.message}`)
     }
 
     const {
@@ -138,6 +143,7 @@ export async function cmdGenerate(args, loadGlobalModels, __dirname) {
         }
 
         // ─── 执行生成 ───────────────────────────────────────────
+        spinner.start(`正在通过驱动 [${preset}] 生成代码资产...`)
         const generateParams = {
             page_id, title, layout, api_endpoints, components, track, features, state,
             models: pageModels, globalModels, camel, kebab,
@@ -168,7 +174,9 @@ export async function cmdGenerate(args, loadGlobalModels, __dirname) {
         } else {
             throw new Error(`驱动程序不支持生成规范，缺少 onGenerate 亦或旧版 generatePage 导出！`)
         }
+        spinner.succeed(`代码生成完成`)
     } catch (err) {
+        spinner.fail(`生成失败`)
         // 区分 "驱动未找到" 和 "驱动 crash" 返回不同退出码
         if (err.code === 'ERR_MODULE_NOT_FOUND') {
             log.error(`驱动模块无法加载 (Exit 3):`)
