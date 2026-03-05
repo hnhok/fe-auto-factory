@@ -72,6 +72,34 @@ npm install @hnhok/fe-auto-factory@latest -D
 npx fe-factory
 ```
 
+---
+
+## 场景三：持续演进（如何跟随工厂基建的升级迭代）
+
+当 `@hnhok/fe-auto-factory` 工具发布了新版本（比如增加了新的 AI 工作流指令、优化了某些 Schema 校验规则），你已经初始化的应用项目该如何同步获取这些底层的持续能力？
+
+我们为你提供了一键无损同步机制：
+
+### 第一步：更新开发依赖
+确保你当前项目使用的引擎是最新版：
+```bash
+npm install @hnhok/fe-auto-factory@latest -D
+```
+
+### 第二步：执行基建同步
+执行下面的指令，它会自动检查并把你项目缺失的最新特性同步进来：
+```bash
+npx fe-factory update
+```
+
+> 🛡️ **安全同步策略**：
+> `update` 命令会安全地执行以下动作：
+> 1. **AI 魔法流重载**：同步最新的 `.agent` 工作流文件到你本地，让你的 AI 助手（Cursor/Windsurf）学会最新的工厂指令。
+> 2. **规则库对齐**：同步最新的 `schemas` 格式校验规则，防止旧 Schema 无法享受新属性带来的红利。
+> 3. **变更存证**：自动更新你本地项目的 `docs/CHANGELOG.md`，记录下同步升级的时间戳与对应版本，方便团队追溯。
+
+---
+
 ## 下一步
 
 准备好你的 Schema 结构图。点击侧边栏的 **[YAML 骨架规范]**，正式开始你的 “Schema 驱动开发之旅”！
