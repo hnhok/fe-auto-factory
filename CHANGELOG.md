@@ -1,5 +1,12 @@
 # 变更日志 (CHANGELOG)
 
+## [v3.6.2] - 2026-03-05
+### 体验优化 (Experience)
+* **应用项目 UI 入口感知优化**: 
+  - 在所有内置模板（Vue3 Admin / H5 等）的 `package.json` 中预设了 `factory:ui` 脚本，开发者只需运行 `npm run factory:ui` 即可快速开启可视化面板。
+  - 同步补充了 `factory:generate` 和 `factory:report` 等常用快捷指令。
+* **文档强化**: 在《5 分钟速通实战》教程中新增了专有的 Web UI 引导章节（步骤 4），大幅降低了新手的入门门槛。
+
 ## [v3.6.1] - 2026-03-05
 ### 体验优化 (Experience)
 * **工业级命令行反馈 (CLI Spinner)**: 在 `init`、`generate`、`vision` 和 `report` 等核心耗时任务中全面引入了轻量级 Spinner 状态反馈动画。

@@ -78,7 +78,24 @@ npx fe-factory generate --schema schemas/pages/ProductManager.schema.yaml
 
 ---
 
-## 步骤 4: 震惊你认知的人机结对与“防覆盖”实验 🚀
+## 步骤 4: 可视化控制台 —— 让“黑盒”变通透 (Web UI)
+
+如果你觉得在那敲这一长串 `--schema schemas/pages/xxx.yaml` 命令太过于专业、太有门槛，或者你想直观看看项目目前的资产健康度，那么请开启你的 **FE-Factory UI 面板**：
+
+在项目目录下执行：
+```bash
+npm run factory:ui
+```
+*(或者执行 `npx fe-factory ui`)*
+
+**在浏览器打开 `http://localhost:4000`，你将获得以下上帝视角：**
+- 🕹️ **一键雷达扫描**：自动列出项目中所有的图纸，点击页面上的【生成】按钮即可原地交付，再也不用记路径。
+- 🗺️ **全息拓扑图**：右侧可视化树状图会实时展示你的“路由网络”和“组件复用图谱”，项目资产一目了然。
+- 📊 **质量感知**：配合接下来的“数据化反哺”，你可以直接在面板上看到项目的 ESLint/TS 类型健康度报告分布。
+
+---
+
+## 步骤 5: 震惊你认知的人机结对与“防覆盖”实验 🚀
 
 你可能有疑惑：“这和我以前用的代码生成器有什么区别？如果我现在改了文件，下次老板要我新加个接口，我一运行命令，我的手写代码不就被覆盖了吗？”
 
@@ -111,7 +128,7 @@ npx fe-factory generate --schema schemas/pages/ProductManager.schema.yaml
 
 ---
 
-## 步骤 5: 配合本地 AI IDE（如 Cursor / Windsurf）一键画图为码 📸
+## 步骤 6: 配合本地 AI IDE（如 Cursor / Windsurf）一键画图为码 📸
 
 不想手写 Schema？如果你使用的是支持 Agent 工作流的新一代 IDE 工具（如 Cursor, Windsurf），你现在拥有这颗星球上最激进的工程体验：**直接让本地 AI 看着设计稿，调起工厂流水线！**
 

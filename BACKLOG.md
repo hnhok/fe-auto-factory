@@ -40,6 +40,7 @@
 ---
 
 ## ✅ 历史已交付 (Done / Archived)
+* [x] ~~**优化应用项目 UI 入口感知**~~：在所有官方模板中内置 `factory:ui` 脚本，并在实战教程中新增“步骤 4”引导进入 Web UI。 (v3.6.2)
 * [x] ~~**深入优化 CLI 命令终端体验**~~：引入轻量级 Spinner 动画，优化耗时任务状态反馈。 (v3.6.1)
 * [x] ~~`npx fe-factory report` 生成的周报接入本地真实的 `eslint`/`typescript` 告警数据，真实反哺给开发人员。~~ (v3.6.0)
 * [x] ~~💻 **Web UI 控制台 (`fe-factory ui`)**：为底层项目提供独立的图形化管理面板 (Visual Dashboard)，直观呈现组件复用图谱与路由网络。~~ (v3.6.0)
