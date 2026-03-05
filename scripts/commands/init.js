@@ -46,7 +46,7 @@ export async function cmdInit(args, FACTORY_VERSION, ROOT) {
         ]
         const { selectedPreset } = await inquirer.prompt([
             {
-                type: 'list',
+                type: 'select',
                 name: 'selectedPreset',
                 message: '请选择项目基础预设栈 (Presets):',
                 choices: presets

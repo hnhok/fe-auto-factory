@@ -3,6 +3,8 @@ import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from '
 import { join, extname } from 'path'
 import { spawn } from 'child_process'
 import { parseFrontmatter } from '../utils/schema.js'
+import { buildComponentRegistry } from '../snapshot/component-registry.js'
+import { buildRouteRegistry } from '../snapshot/route-registry.js'
 
 export async function startUIServer(port = 4000) {
     const cwd = process.cwd()
@@ -34,6 +36,31 @@ export async function startUIServer(port = 4000) {
                 })
                 res.writeHead(200, { 'Content-Type': 'application/json' })
                 return res.end(JSON.stringify({ code: 0, data: schemas }))
+            } catch (e) {
+                res.writeHead(500, { 'Content-Type': 'application/json' })
+                return res.end(JSON.stringify({ code: 500, message: e.message }))
+            }
+        }
+
+        // --- Fetch Component Topology ---
+        if (url.pathname === '/api/components' && req.method === 'GET') {
+            try {
+                const registry = buildComponentRegistry(cwd)
+                const compArray = Array.from(registry.entries()).map(([name, absPath]) => ({ name, absPath }))
+                res.writeHead(200, { 'Content-Type': 'application/json' })
+                return res.end(JSON.stringify({ code: 0, data: compArray }))
+            } catch (e) {
+                res.writeHead(500, { 'Content-Type': 'application/json' })
+                return res.end(JSON.stringify({ code: 500, message: e.message }))
+            }
+        }
+
+        // --- Fetch Route Topology ---
+        if (url.pathname === '/api/routes' && req.method === 'GET') {
+            try {
+                const routes = buildRouteRegistry(cwd)
+                res.writeHead(200, { 'Content-Type': 'application/json' })
+                return res.end(JSON.stringify({ code: 0, data: routes }))
             } catch (e) {
                 res.writeHead(500, { 'Content-Type': 'application/json' })
                 return res.end(JSON.stringify({ code: 500, message: e.message }))
@@ -141,9 +168,22 @@ export async function startUIServer(port = 4000) {
                     </template>
                 </el-dialog>
             </div>
-            <div class="content" v-else>
-                <el-empty description="请从左侧选择一个 Schema 图纸"></el-empty>
             </div>
+            
+            <div class="sidebar" style="margin-left: 20px;">
+                <h3>路由拓扑与组件树</h3>
+                <el-scrollbar height="600px">
+                    <el-tree
+                        v-if="components.length > 0"
+                        :data="componentTreeData"
+                        :props="defaultProps"
+                        default-expand-all
+                    ></el-tree>
+                    <el-empty v-else description="项目暂无全局/页面组件"></el-empty>
+                    <el-button type="info" class="mt-4" style="width: 100%; margin-top:20px" @click="fetchComponents" plain>📊 重新扫描组件图谱</el-button>
+                </el-scrollbar>
+            </div>
+
         </div>
     </div>
 
@@ -154,6 +194,10 @@ export async function startUIServer(port = 4000) {
             setup() {
                 const cwd = ref('${cwd.replace(/\\/g, '\\\\')}')
                 const schemas = ref([])
+                const components = ref([])
+                const componentTreeData = ref([])
+                const defaultProps = { children: 'children', label: 'label' }
+                
                 const currentIndex = ref(null)
                 const currentSchema = ref(null)
                 const generating = ref(false)
@@ -169,6 +213,42 @@ export async function startUIServer(port = 4000) {
                             handleSelect('0')
                         }
                     } catch (e) { ElementPlus.ElMessage.error('读取 Schema 失败'); }
+                }
+
+                const fetchComponents = async () => {
+                    try {
+                        const [compRes, routeRes] = await Promise.all([
+                            fetch('/api/components'),
+                            fetch('/api/routes')
+                        ])
+                        const compData = await compRes.json()
+                        const routeData = await routeRes.json()
+                        
+                        components.value = compData.data || []
+                        const routes = routeData.data || []
+                        
+                        const rootNode = { label: 'src', children: [] }
+                        
+                        // 1. Add Route Tree
+                        if (routes.length > 0) {
+                            rootNode.children.push({ label: 'router (路由树)', children: routes })
+                        }
+
+                        // 2. Add Component Lists
+                        const componentsNode = { label: 'components (全局)', children: [] }
+                        const viewsNode = { label: 'views (页面级)', children: [] }
+                        
+                        components.value.forEach(comp => {
+                            if (comp.absPath.includes('src\\\\components') || comp.absPath.includes('src/components')) {
+                                componentsNode.children.push({ label: comp.name + '.vue' })
+                            } else if (comp.absPath.includes('src\\\\views') || comp.absPath.includes('src/views')) {
+                                viewsNode.children.push({ label: comp.name + '.vue' })
+                            }
+                        })
+                        rootNode.children.push(componentsNode, viewsNode)
+                        componentTreeData.value = [rootNode]
+
+                    } catch (e) { ElementPlus.ElMessage.error('读取组件树失败'); }
                 }
 
                 const handleSelect = (index) => {
@@ -201,11 +281,15 @@ export async function startUIServer(port = 4000) {
                     }
                 }
 
-                onMounted(fetchSchemas)
+                onMounted(() => {
+                    fetchSchemas()
+                    fetchComponents()
+                })
 
                 return {
                     cwd, schemas, currentSchema, handleSelect, fetchSchemas,
-                    generateCode, generating, consoleVisible, consoleOutput
+                    generateCode, generating, consoleVisible, consoleOutput,
+                    components, componentTreeData, defaultProps, fetchComponents
                 }
             }
         }).use(ElementPlus).mount('#app')

@@ -1,0 +1,19 @@
+{
+  "_version": "1",
+  "generated": [
+    {
+      "page_id": "OrderAuto",
+      "kebab": "order-auto",
+      "schema": "schemas\\pages\\OrderAuto.schema.yaml",
+      "files": [
+        "src/views/OrderAuto/index.vue",
+        "src/views/OrderAuto/hooks/useOrderAuto.ts",
+        "src/api/order-auto.ts",
+        "src/api/types/order-auto.ts",
+        "src/store/order-auto.ts"
+      ],
+      "generatedAt": "2026-03-05T08:54:15.855Z"
+    }
+  ],
+  "lastUpdated": "2026-03-05T08:54:15.855Z"
+}

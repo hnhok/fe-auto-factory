@@ -78,7 +78,52 @@ async function cmdVision(args) {
 // ─── Command: report ─────────────────────────────────────────────────────────
 async function cmdReport(args) {
   printBanner()
-  log.step('生成 AI 分析周报...')
+  log.step('开始扫描本地代码质量环境并生成 AI 分析周报...')
+
+  const { execSync } = await import('child_process')
+  const { existsSync } = await import('fs')
+
+  let eslintErrors = 0, eslintWarnings = 0
+  let tsErrors = 0
+
+  try {
+    log.info('🔍 正在提取 ESLint 扫描数据...')
+    if (existsSync(join(process.cwd(), 'node_modules', 'eslint', 'bin', 'eslint.js'))) {
+      const output = execSync('npx eslint . --ext .js,.cjs,.mjs,.ts,.vue --f json', { cwd: process.cwd(), encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] })
+      const results = JSON.parse(output)
+      results.forEach(r => {
+        eslintErrors += r.errorCount || 0
+        eslintWarnings += r.warningCount || 0
+      })
+    } else {
+      log.warn('项目未安装 ESLint，跳过统计')
+    }
+  } catch (err) {
+    if (err.stdout) {
+      try {
+        const results = JSON.parse(err.stdout)
+        results.forEach(r => {
+          eslintErrors += r.errorCount || 0
+          eslintWarnings += r.warningCount || 0
+        })
+      } catch (e) { }
+    }
+  }
+
+  try {
+    log.info('🔍 正在提取 TypeScript 类型健康度...')
+    const hasVueTsc = existsSync(join(process.cwd(), 'node_modules', 'vue-tsc', 'bin', 'vue-tsc.js'))
+    const hasTsc = existsSync(join(process.cwd(), 'node_modules', 'typescript', 'bin', 'tsc'))
+    if (hasVueTsc) {
+      execSync('npx vue-tsc --noEmit', { cwd: process.cwd(), stdio: 'ignore' })
+    } else if (hasTsc) {
+      execSync('npx tsc --noEmit', { cwd: process.cwd(), stdio: 'ignore' })
+    } else {
+      log.warn('项目未安装 TS 编译器，跳过统计')
+    }
+  } catch (err) {
+    tsErrors = err.status || 1
+  }
 
   const now = new Date()
   const weekNum = getWeekNumber(now)
@@ -87,21 +132,22 @@ async function cmdReport(args) {
 
   mkdirSync(dirname(reportPath), { recursive: true })
 
-  const reportContent = `# 📊 MVP 周报 ${year}-W${weekNum}
+  const reportContent = `# 📊 代码工程质量周报 ${year}-W${weekNum}
 
 > 生成时间: ${now.toLocaleString('zh-CN')}
-> 由 FE-Auto-Factory v${FACTORY_VERSION} 自动生成
+> 由 FE-Auto-Factory v${FACTORY_VERSION} 智能终端自动生成
 
 ---
 
-## 🔴 Sentry 报错 Top 10
+## 🤖 本地静态代码健康度
 
-| 排名 | 错误信息 | 发生次数 | 影响用户数 | 首次出现 |
-|-----|---------|---------|-----------|---------|
-| 1 | TypeError: Cannot read property of undefined | 128 | 45 | 待接入 |
-| 2 | Network Error | 89 | 23 | 待接入 |
+| 扫描维度 | 告警/错误数 | 状态评估 |
+|-----|---------|-----------|
+| **ESLint Errors** | ${eslintErrors} | ${eslintErrors === 0 ? '✅ 完美' : (eslintErrors > 10 ? '🔴 亟待修复' : '🟡 建议优化')} |
+| **ESLint Warnings** | ${eslintWarnings} | ${eslintWarnings === 0 ? '✅ 清爽' : '🟡 需适度关注'} |
+| **TypeScript Errors** | ${tsErrors ? '有编译错误' : '0'} | ${tsErrors === 0 ? '✅ 类型安全' : '🔴 存在类型隐患'} |
 
-> ⚠️ 请配置 VITE_SENTRY_DSN 环境变量后重新生成以获取真实数据
+> ℹ️ 以上数据反映了当前本地项目的代码硬性静态质量，强烈建议在提交/合并分支前将 Errors 清零。
 
 ---
 
@@ -310,7 +356,7 @@ switch (command) {
       const inquirer = (await import('inquirer')).default;
       const { action } = await inquirer.prompt([
         {
-          type: 'list',
+          type: 'select',
           name: 'action',
           message: '请选择你要执行的操作:',
           choices: [
@@ -351,7 +397,7 @@ switch (command) {
 
         const { file } = await inquirer.prompt([
           {
-            type: 'list',
+            type: 'select',
             name: 'file',
             message: '请选择要生成的 Schema 文件:',
             choices: schemas

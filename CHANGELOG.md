@@ -1,5 +1,37 @@
 # 变更日志 (CHANGELOG)
 
+## [v3.6.0] - 2026-03-05
+### 新功能 (Features)
+
+#### 💻 智能可视化引擎 (Visual Engine)
+* **Web UI 控制台 (`fe-factory ui`)**: 全新推出运行在本地的独立可视化管理面板，彻底打破传统依赖终端命令行的“黑盒开发”体验。
+* **一键可视生成**: 在 UI 控制台中支持直观阅览本地 Schema 图纸内容，并支持一键通过网页按钮触发底层的 AST 增量生成。
+* **全息路由与组件拓扑网**: 
+  * 引入服务端全新的 `api/routes` 和 `api/components` 端点。
+  * `route-registry.js` 基于 AST (`ts-morph`) 实现了路由语法的静默解析。
+  * 可视化面板通过内置 Tree 结构，实时动态描绘“全局组件”、“页面级组件”和项目的多层级嵌套“路由网络拓扑”。
+
+#### 📈 数据化反哺 (Data Feedback)
+* **智能代码健康度报告 (`report` 命令升级)**: 周报生成不再是单纯的静态模板输出，现在其能深度结合主工程内的运行环境：
+  * **ESLint 静态分析拦截**：底层自动拉起 `npx eslint` 返回 JSON Ast 进行容错统计，准确反映当前项目的硬性代码异味：`Errors` 与 `Warnings`。
+  * **TypeScript 强类型护城河**：自动兼容拉起基于所在项目的 `tsc` / `vue-tsc --noEmit`，暴露类型健康度！
+  * 完美实现了「资产在本地跑，周报看真实」的极高工程价值。
+
+## [v3.5.0] - 2026-03-05
+### 体验优化与模板增强 (Experience & Template Enhancement)
+
+#### 📖 文档体验优化
+* **重构:** 全面重新梳理了文档中的《5 分钟速通实战》，将执行完 INIT 之后的连贯运行及新增的 AI 视觉一键生码 (`vision`) 流程无缝串联，消除了新手的割裂感。
+
+#### 🔧 Admin 模板多环境增强
+* **功能:** 为 `vue3-element-admin` 和 `react-antd-admin` 加入开箱即用的多环境配置。
+* **新增:** `templates/base-vue3-element-admin/` 下新增 `.env.development`, `.env.test`, `.env.production`，支持本地/测试/线上环境区分。
+* **重构:** `src/utils/request.ts` 新接入原生的 `import.meta.env.VITE_APP_ENV` 判断机制，支持 Axios Server API 的多环境智能动态切换。
+* **脚本:** 新增 `build:test` 与 `build:prod` 构建指令。
+
+#### 🐛 问题修复 (Bug Fixes)
+* **交互层:** 彻底迁移 `inquirer` 旧版 `list` 到最新的 `select` 类型，修复了在 CLI 交互过程（如 `npx fe-factory init`）中终端预设列表无法显示的严重交互 Bug。
+
 ## [v3.4.0] - 2026-03-03
 ### 新功能 (Features)
 
